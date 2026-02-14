@@ -1,10 +1,12 @@
-// BHIV Design Engine Frontend
+// Samrachna - AI Design & Architecture Frontend
 // API Configuration
 // For local development: 'http://127.0.0.1:8000'
 // For Render deployment, update this to your backend URL:
 const API_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://127.0.0.1:8000'
     : 'https://design-engine-api-h10a.onrender.com';
+
+const VIDEO_API_BASE_URL = 'http://127.0.0.1:9000';
 
 // State Management
 const state = {
@@ -15,7 +17,9 @@ const state = {
     lastPreviewUrl: null,
     lastCost: 0,
     recentDesigns: [],
-    apiConnected: false
+    apiConnected: false,
+    videoApiConnected: false,
+    videos: []
 };
 
 // Utility Functions
@@ -53,6 +57,54 @@ async function checkAPIHealth() {
     }
 }
 
+async function checkVideoAPIHealth() {
+    try {
+        const response = await fetch(`${VIDEO_API_BASE_URL}/health`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        state.videoApiConnected = response.ok;
+        updateVideoAPIStatus(response.ok);
+        return response.ok;
+    } catch (error) {
+        state.videoApiConnected = false;
+        updateVideoAPIStatus(false);
+        return false;
+    }
+}
+
+async function videoApiPost(endpoint, formData) {
+    const headers = {};
+    if (state.authToken) {
+        headers['Authorization'] = `Bearer ${state.authToken}`;
+    }
+
+    const response = await fetch(`${VIDEO_API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers,
+        body: formData
+    });
+
+    return response;
+}
+
+async function videoApiGet(endpoint, params = {}) {
+    const headers = {};
+    if (state.authToken) {
+        headers['Authorization'] = `Bearer ${state.authToken}`;
+    }
+
+    const queryString = new URLSearchParams(params).toString();
+    const url = queryString ? `${VIDEO_API_BASE_URL}${endpoint}?${queryString}` : `${VIDEO_API_BASE_URL}${endpoint}`;
+
+    const response = await fetch(url, {
+        method: 'GET',
+        headers
+    });
+
+    return response;
+}
+
 async function login(username, password) {
     try {
         const formData = new URLSearchParams();
@@ -76,6 +128,35 @@ async function login(username, password) {
         return data;
     } catch (error) {
         throw error;
+    }
+}
+
+async function loginVideoAPI() {
+    try {
+        // Try to login to video API with demo credentials
+        const formData = new URLSearchParams();
+        formData.append('username', 'demo');
+        formData.append('password', 'demo1234');
+
+        const response = await fetch(`${VIDEO_API_BASE_URL}/users/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            // Store video API token separately if needed
+            if (data.access_token) {
+                // Use the same auth token state for video API
+                state.authToken = data.access_token;
+            }
+            return data;
+        }
+        return null;
+    } catch (error) {
+        console.log('Video API login failed, continuing without auth:', error);
+        return null;
     }
 }
 
@@ -136,6 +217,19 @@ function updateAPIStatus(isOnline) {
         if (headerDot) headerDot.classList.add('offline');
         if (headerText) headerText.textContent = 'Offline';
         if (dashboardStatus) dashboardStatus.textContent = 'Offline';
+    }
+}
+
+function updateVideoAPIStatus(isOnline) {
+    const dot = document.getElementById('video-api-status-dot');
+    const text = document.getElementById('video-api-status-text');
+
+    if (isOnline) {
+        dot?.classList.add('online');
+        if (text) text.textContent = 'Video API Online';
+    } else {
+        dot?.classList.remove('online');
+        if (text) text.textContent = 'Video API Offline';
     }
 }
 
@@ -670,6 +764,144 @@ async function handleTrainPPO() {
     }
 }
 
+async function handleGenerateVideo() {
+    const btn = document.getElementById('generate-video-btn');
+    const originalText = btn.innerHTML;
+    const fileInput = document.getElementById('video-script-file');
+
+    const file = fileInput.files[0];
+
+    if (!file) {
+        showResult('video-gen-result', 'Please select a script file (.txt)', true);
+        return;
+    }
+
+    // Use filename (without extension) as the title
+    const title = file.name.replace(/\.[^/.]+$/, "");
+
+    btn.innerHTML = '<span class="spinner"></span> Generating...';
+    btn.disabled = true;
+
+    try {
+        // Try to authenticate with video API if not already authenticated
+        if (!state.authToken) {
+            await loginVideoAPI();
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('title', title);
+
+        const response = await videoApiPost('/generate-video', formData);
+        const data = await response.json();
+
+        if (response.ok) {
+            showResult('video-gen-result', data);
+            handleRefreshVideoList();
+        } else {
+            // If 401, try to login and retry
+            if (response.status === 401) {
+                await loginVideoAPI();
+                const retryResponse = await videoApiPost('/generate-video', formData);
+                const retryData = await retryResponse.json();
+                if (retryResponse.ok) {
+                    showResult('video-gen-result', retryData);
+                    handleRefreshVideoList();
+                } else {
+                    showResult('video-gen-result', retryData, true);
+                }
+            } else {
+                showResult('video-gen-result', data, true);
+            }
+        }
+    } catch (error) {
+        showResult('video-gen-result', error.message, true);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function handleRefreshVideoList() {
+    const gallery = document.getElementById('video-gallery');
+
+    try {
+        const response = await videoApiGet('/contents');
+        const data = await response.json();
+
+        if (response.ok) {
+            state.videos = data.items || [];
+            renderVideoGallery(state.videos);
+        } else {
+            gallery.innerHTML = `<div class="info-item error">Error loading videos: ${data.message || 'Unknown error'}</div>`;
+        }
+    } catch (error) {
+        gallery.innerHTML = `<div class="info-item error">Error connecting to Video API: ${error.message}</div>`;
+    }
+}
+
+function renderVideoGallery(videos) {
+    const gallery = document.getElementById('video-gallery');
+
+    if (videos.length === 0) {
+        gallery.innerHTML = '<div class="info-item"><p style="text-align: center; color: var(--text-secondary);">No videos generated yet</p></div>';
+        return;
+    }
+
+    gallery.innerHTML = videos.map(video => `
+        <div class="video-card" data-id="${video.content_id}">
+            <div class="video-player-container">
+                <video controls preload="metadata" crossorigin="anonymous">
+                    <source src="${VIDEO_API_BASE_URL}${video.stream_url}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="video-info">
+                <div class="video-title">${video.title || 'Untitled Video'}</div>
+                <div class="video-meta">
+                    <span>📅 ${video.uploaded_at ? new Date(typeof video.uploaded_at === 'number' ? video.uploaded_at * 1000 : new Date(video.uploaded_at).getTime()).toLocaleDateString() : 'N/A'}</span>
+                    <span>⏱️ ${video.duration_ms ? Math.round(video.duration_ms / 1000) : 0}s</span>
+                </div>
+                <div class="tag-container" id="tags-${video.content_id}">
+                    ${(() => {
+                        try {
+                            const tags = typeof video.current_tags === 'string' ? JSON.parse(video.current_tags || '[]') : (video.current_tags || []);
+                            return tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+                        } catch(e) {
+                            return '';
+                        }
+                    })()}
+                </div>
+                <a href="${VIDEO_API_BASE_URL}${video.download_url || `/download/${video.content_id}`}" class="btn btn-primary btn-sm mt-2" style="width: 100%; display: block; text-align: center; text-decoration: none;" download>
+                    <span>⬇️</span> Download Video
+                </a>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function loadRecommendations(contentId) {
+    const tagContainer = document.getElementById(`tags-${contentId}`);
+    const originalContent = tagContainer.innerHTML;
+    tagContainer.innerHTML = '<span class="spinner"></span>';
+
+    try {
+        const response = await videoApiGet(`/recommend-tags/${contentId}`);
+        const data = await response.json();
+
+        if (response.ok) {
+            const recommended = data.recommended_tags || [];
+            tagContainer.innerHTML = originalContent + recommended.map(tag => `<span class="tag recommended">${tag}</span>`).join('');
+        } else {
+            tagContainer.innerHTML = originalContent;
+            alert('Failed to load recommendations');
+        }
+    } catch (error) {
+        tagContainer.innerHTML = originalContent;
+        alert('Error connecting to AI Agent');
+    }
+}
+
 // Tab Navigation
 function setupTabs() {
     const navItems = document.querySelectorAll('.nav-item');
@@ -698,6 +930,7 @@ function setupTabs() {
 document.addEventListener('DOMContentLoaded', () => {
     // Check API health on load
     checkAPIHealth();
+    checkVideoAPIHealth();
 
     // Setup login form
     document.getElementById('login-form').addEventListener('submit', handleLogin);
@@ -728,6 +961,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('submit-feedback-btn').addEventListener('click', handleSubmitFeedback);
     document.getElementById('train-rlhf-btn').addEventListener('click', handleTrainRLHF);
     document.getElementById('train-ppo-btn').addEventListener('click', handleTrainPPO);
+
+    // Video Lab handlers
+    document.getElementById('generate-video-btn').addEventListener('click', handleGenerateVideo);
+    document.getElementById('refresh-video-list-btn').addEventListener('click', handleRefreshVideoList);
 
     // Rating slider display
     const ratingSlider = document.getElementById('eval-rating');

@@ -1,5 +1,5 @@
 services:
-  # Backend API
+  # Main Backend API
   - type: web
     name: design-engine-api
     env: python
@@ -42,6 +42,47 @@ services:
         value: false
       - key: ENVIRONMENT
         value: production
+
+  # Video Generation Backend
+  - type: web
+    name: ai-uploader-agent
+    env: python
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: video
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.10
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: BHIV_STORAGE_BACKEND
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET_NAME
+        value: ai-agent-files
+      - key: ENVIRONMENT
+        value: production
+      - key: SENTRY_DSN
+        sync: false
+      - key: POSTHOG_API_KEY
+        sync: false
+      - key: POSTHOG_HOST
+        value: https://us.posthog.com
+      - key: ENABLE_PERFORMANCE_MONITORING
+        value: true
+      - key: ENABLE_USER_ANALYTICS
+        value: true
+      - key: ENABLE_ERROR_REPORTING
+        value: true
 
   # Frontend Web App
   - type: web
