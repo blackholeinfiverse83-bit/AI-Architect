@@ -73,9 +73,6 @@
                     <button class="nav-item" data-tab="evaluate">
                         <span>⭐</span> Evaluate
                     </button>
-                    <button class="nav-item" data-tab="compliance">
-                        <span>✅</span> Compliance
-                    </button>
                     <button class="nav-item" data-tab="history">
                         <span>📜</span> History
                     </button>
@@ -284,73 +281,6 @@
                         </div>
                         <button id="eval-btn" class="btn btn-primary">Submit Evaluation</button>
                         <div id="eval-result" class="result-container hidden"></div>
-                    </div>
-                </div>
-
-                <!-- Compliance Tab -->
-                <div id="tab-compliance" class="tab-content">
-                    <div class="card">
-                        <h3>✅ Compliance Check</h3>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>City</label>
-                                <select id="comp-city">
-                                    <option value="Mumbai">Mumbai</option>
-                                    <option value="Pune">Pune</option>
-                                    <option value="Ahmedabad">Ahmedabad</option>
-                                    <option value="Nashik">Nashik</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Project ID</label>
-                                <input type="text" id="comp-project-id" value="project_001">
-                            </div>
-                            <div class="form-group">
-                                <label>Land Use Zone</label>
-                                <select id="comp-land-use">
-                                    <option value="R1">R1</option>
-                                    <option value="R2">R2</option>
-                                    <option value="R3">R3</option>
-                                    <option value="Commercial">Commercial</option>
-                                    <option value="Mixed Use">Mixed Use</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Plot Area (sq.m)</label>
-                                <input type="number" id="comp-plot-area" value="100" min="0" step="10">
-                            </div>
-                            <div class="form-group">
-                                <label>Road Width (m)</label>
-                                <input type="number" id="comp-road-width" value="12" min="0" step="0.5">
-                            </div>
-                            <div class="form-group">
-                                <label>Height (m)</label>
-                                <input type="number" id="comp-height" value="10" min="0" step="0.5">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Setback (m)</label>
-                                <input type="number" id="comp-setback" value="3" min="0" step="0.5">
-                            </div>
-                            <div class="form-group">
-                                <label>FSI</label>
-                                <input type="number" id="comp-fsi" value="1.8" min="0" step="0.1">
-                            </div>
-                            <div class="form-group">
-                                <label>Building Type</label>
-                                <select id="comp-bldg-type">
-                                    <option value="Residential">Residential</option>
-                                    <option value="Commercial">Commercial</option>
-                                    <option value="Mixed Use">Mixed Use</option>
-                                    <option value="Industrial">Industrial</option>
-                                </select>
-                            </div>
-                        </div>
-                        <button id="compliance-btn" class="btn btn-primary">Run Compliance Check</button>
-                        <div id="compliance-result" class="result-container hidden"></div>
                     </div>
                 </div>
 

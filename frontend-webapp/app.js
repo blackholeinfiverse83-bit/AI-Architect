@@ -540,39 +540,7 @@ async function handleEvaluate() {
     }
 }
 
-async function handleCompliance() {
-    const btn = document.getElementById('compliance-btn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Checking...';
-    btn.disabled = true;
-
-    try {
-        const payload = {
-            case_id: `case_${generateUUID().substring(0, 8)}`,
-            project_id: document.getElementById('comp-project-id').value,
-            city: document.getElementById('comp-city').value,
-            parameters: {
-                land_use_zone: document.getElementById('comp-land-use').value,
-                plot_area_sq_m: parseFloat(document.getElementById('comp-plot-area').value),
-                abutting_road_width_m: parseFloat(document.getElementById('comp-road-width').value),
-                height_m: parseFloat(document.getElementById('comp-height').value),
-                setback_m: parseFloat(document.getElementById('comp-setback').value),
-                fsi: parseFloat(document.getElementById('comp-fsi').value),
-                building_type: document.getElementById('comp-bldg-type').value
-            }
-        };
-
-        const response = await apiPost('/api/v1/compliance/run_case', payload);
-        const data = await response.json();
-
-        showResult('compliance-result', data, !response.ok);
-    } catch (error) {
-        showResult('compliance-result', error.message, true);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
+// Compliance function removed
 
 async function handleLoadHistory() {
     const btn = document.getElementById('load-history-btn');
@@ -952,7 +920,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('switch-btn').addEventListener('click', handleSwitch);
     document.getElementById('iterate-btn').addEventListener('click', handleIterate);
     document.getElementById('eval-btn').addEventListener('click', handleEvaluate);
-    document.getElementById('compliance-btn').addEventListener('click', handleCompliance);
     document.getElementById('load-history-btn').addEventListener('click', handleLoadHistory);
     document.getElementById('load-spec-history-btn').addEventListener('click', handleLoadSpecHistory);
     document.getElementById('list-geometry-btn').addEventListener('click', handleListGeometry);
