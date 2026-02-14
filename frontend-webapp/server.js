@@ -13,7 +13,7 @@ app.use(express.static(path.join(__dirname)));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', service: 'BHIV Frontend' });
+    res.json({ status: 'ok', service: 'Samrachna Frontend' });
 });
 
 // Serve index.html for all routes (SPA support)
@@ -22,6 +22,6 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 BHIV Design Engine Frontend running on port ${PORT}`);
+    console.log(`🚀 Samrachna - AI Design & Architecture Frontend running on port ${PORT}`);
     console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });

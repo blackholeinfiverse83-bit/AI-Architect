@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BHIV Design Engine</title>
+    <title>Samrachna - AI Design & Architecture</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div id="app">
         <!-- Login Screen -->
@@ -15,26 +17,26 @@
                 <div class="login-box">
                     <div class="logo">
                         <span class="logo-icon">🏗️</span>
-                        <h1>BHIV Design Engine</h1>
-                        <p>AI-Powered Compliance</p>
+                        <h1>Samrachna</h1>
+                        <p>AI Design & Architecture</p>
                     </div>
-                    
+
                     <form id="login-form">
                         <div class="form-group">
                             <label>Username</label>
                             <input type="text" id="username" value="admin" required>
                         </div>
-                        
+
                         <div class="form-group">
                             <label>Password</label>
                             <input type="password" id="password" value="bhiv2024" required>
                         </div>
-                        
+
                         <button type="submit" class="btn btn-primary btn-full">Login</button>
                     </form>
-                    
+
                     <div id="login-error" class="error-message"></div>
-                    
+
                     <div class="api-status">
                         <span class="status-indicator" id="api-status-indicator"></span>
                         <span id="api-status-text">Checking API...</span>
@@ -50,11 +52,11 @@
                 <div class="sidebar-header">
                     <span class="logo-icon">🏗️</span>
                     <div>
-                        <h3>Design Engine</h3>
-                        <small>AI-Powered Compliance</small>
+                        <h3>Samrachna</h3>
+                        <small>AI Design & Architecture</small>
                     </div>
                 </div>
-                
+
                 <nav class="sidebar-nav">
                     <button class="nav-item active" data-tab="dashboard">
                         <span>🏠</span> Dashboard
@@ -86,8 +88,11 @@
                     <button class="nav-item" data-tab="rl">
                         <span>🤖</span> RL Training
                     </button>
+                    <button class="nav-item" data-tab="videogen">
+                        <span>🎞️</span> Video Lab
+                    </button>
                 </nav>
-                
+
                 <div class="sidebar-footer">
                     <div class="user-info">
                         <span id="user-name">admin</span>
@@ -99,7 +104,7 @@
             <!-- Main Content -->
             <main class="main-content">
                 <header class="main-header">
-                    <h1>BHIV Design Engine</h1>
+                    <h1>Samrachna</h1>
                     <div class="api-status-badge">
                         <span class="status-dot" id="header-status-dot"></span>
                         <span id="header-status-text">Online</span>
@@ -131,9 +136,10 @@
                         <h3>⚡ Quick Generate</h3>
                         <div class="form-group">
                             <label>Describe your design:</label>
-                            <textarea id="quick-prompt" rows="3" placeholder="Design a modern 3-bedroom apartment in Mumbai..."></textarea>
+                            <textarea id="quick-prompt" rows="3"
+                                placeholder="Design a modern 3-bedroom apartment in Mumbai..."></textarea>
                         </div>
-                        
+
                         <div class="form-row">
                             <div class="form-group">
                                 <label>City</label>
@@ -161,9 +167,9 @@
                                 <small>0 for auto</small>
                             </div>
                         </div>
-                        
+
                         <button id="quick-generate-btn" class="btn btn-primary">Generate</button>
-                        
+
                         <div id="quick-result" class="result-container hidden">
                             <!-- Results will appear here -->
                         </div>
@@ -176,9 +182,10 @@
                         <h3>✨ Generate New Design</h3>
                         <div class="form-group">
                             <label>Design Description</label>
-                            <textarea id="gen-prompt" rows="4" placeholder="A modern kitchen with marble island and copper fixtures..."></textarea>
+                            <textarea id="gen-prompt" rows="4"
+                                placeholder="A modern kitchen with marble island and copper fixtures..."></textarea>
                         </div>
-                        
+
                         <div class="form-row">
                             <div class="form-group">
                                 <label>City</label>
@@ -205,9 +212,9 @@
                                 <input type="number" id="gen-budget" value="0" min="0" step="100000">
                             </div>
                         </div>
-                        
+
                         <button id="generate-btn" class="btn btn-primary">Generate Design</button>
-                        
+
                         <div id="gen-result" class="result-container hidden"></div>
                     </div>
                 </div>
@@ -361,9 +368,9 @@
                             </div>
                         </div>
                         <div id="history-result" class="result-container hidden"></div>
-                        
+
                         <hr>
-                        
+
                         <h4>Spec History</h4>
                         <div class="form-row">
                             <div class="form-group">
@@ -384,9 +391,9 @@
                         <h3>📐 Geometry Generation</h3>
                         <button id="list-geometry-btn" class="btn btn-secondary">List Geometry Files</button>
                         <div id="geometry-list-result" class="result-container hidden"></div>
-                        
+
                         <hr>
-                        
+
                         <h4>Generate New Geometry</h4>
                         <div class="form-row">
                             <div class="form-group">
@@ -424,7 +431,7 @@
                 <div id="tab-rl" class="tab-content">
                     <div class="card">
                         <h3>🤖 RL Training</h3>
-                        
+
                         <h4>Submit Feedback</h4>
                         <div class="form-row">
                             <div class="form-group">
@@ -452,9 +459,9 @@
                         </div>
                         <button id="submit-feedback-btn" class="btn btn-primary">Submit Feedback</button>
                         <div id="feedback-result" class="result-container hidden"></div>
-                        
+
                         <hr>
-                        
+
                         <div class="form-row">
                             <div class="form-group">
                                 <h4>RLHF Training</h4>
@@ -473,10 +480,58 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Video Lab Tab -->
+                <div id="tab-videogen" class="tab-content">
+                    <div class="video-lab-container">
+                        <div class="card script-input-area">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <h3 style="margin-bottom: 0;">🎞️ Video Lab</h3>
+                                <div class="video-status-indicator">
+                                    <span class="video-status-dot" id="video-api-status-dot"></span>
+                                    <span id="video-api-status-text">Video API Offline</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Video Script (.txt file)</label>
+                                <input type="file" id="video-script-file" accept=".txt">
+                                <small>Each line in the file will be converted into one frame of the video.</small>
+                            </div>
+
+                            <!-- Video Title removed as per user request -->
+
+                            <button id="generate-video-btn" class="btn btn-primary">
+                                <span>✨</span> Generate Video
+                            </button>
+
+                            <div id="video-gen-result" class="result-container hidden"></div>
+                        </div>
+
+                        <div class="card">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <h3 style="margin-bottom: 0;">📽️ Generated Videos</h3>
+                                <button id="refresh-video-list-btn" class="btn btn-secondary btn-sm">
+                                    <span>🔄</span> Refresh
+                                </button>
+                            </div>
+                            <div id="video-gallery" class="video-gallery">
+                                <!-- Videos will be loaded here -->
+                                <div class="info-item">
+                                    <p style="text-align: center; color: var(--text-secondary);">Click Refresh to load
+                                        videos</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </main>
         </div>
     </div>
 
     <script src="app.js"></script>
 </body>
+
 </html>
