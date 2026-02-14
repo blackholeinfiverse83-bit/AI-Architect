@@ -26,6 +26,8 @@ services:
         value: admin
       - key: DEMO_PASSWORD
         sync: false
+      - key: OPENAI_API_KEY
+        sync: false
       - key: SOHAM_URL
         value: https://ai-rule-api-w7z5.onrender.com
       - key: RANJEET_RL_URL
