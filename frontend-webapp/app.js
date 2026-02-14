@@ -4,7 +4,7 @@
 // For Render deployment, update this to your backend URL:
 const API_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://127.0.0.1:8000'
-    : 'https://design-engine-api.onrender.com';
+    : 'https://design-engine-api-h10a.onrender.com';
 
 // State Management
 const state = {
