@@ -1,0 +1,54 @@
+# Minimal core dependencies for initial installation
+# This file is used by the installation scripts to avoid conflicts
+
+# Essential build tools and core packages
+setuptools<70
+wheel
+pip>=23.0
+
+# Core FastAPI stack
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+starlette>=0.27.0,<0.28.0
+python-multipart==0.0.6
+jinja2==3.1.2
+python-dotenv==1.0.0
+
+# Database essentials
+sqlmodel==0.0.14
+alembic==1.13.1
+psycopg2-binary==2.9.9
+
+# Authentication core
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+cryptography>=41.0.0,<42.0.0
+
+# HTTP and async
+httpx==0.25.2
+requests==2.31.0
+aiofiles==23.2.1
+tenacity==8.2.3
+
+# Data validation
+pydantic==2.5.0
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# Basic data processing
+numpy==1.25.2
+pandas==2.1.4
+
+# Monitoring essentials
+sentry-sdk[fastapi]==1.38.0
+posthog==3.0.2
+json-log-formatter==0.5.2
+
+# Testing basics
+pytest==7.4.3
+pytest-asyncio==0.21.1
+
+# Utilities
+python-dateutil==2.8.2
+pytz==2023.3
