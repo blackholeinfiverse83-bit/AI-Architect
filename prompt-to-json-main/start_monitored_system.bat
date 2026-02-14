@@ -3,7 +3,7 @@ echo ============================================
 echo BHIV AI Assistant - Monitored System
 echo ============================================
 
-cd /d "c:\Users\Anmol\Desktop\Backend\backend"
+cd /d "%~dp0backend"
 call venv\Scripts\activate.bat
 
 echo Cleaning up processes...

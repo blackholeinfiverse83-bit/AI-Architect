@@ -65,9 +65,9 @@ if settings.SENTRY_DSN:
         environment=settings.ENVIRONMENT,
         send_default_pii=True,
     )
-    logger.info("✅ Sentry initialized and connected")
+    logger.info("[OK] Sentry initialized and connected")
 else:
-    logger.warning("❌ Sentry not configured")
+    logger.warning("[WARN] Sentry not configured")
 
 # Lazy GPU detection - only when needed
 try:
@@ -83,13 +83,13 @@ try:
 
     logger.info(f"Supabase client loaded (connection deferred): {settings.SUPABASE_URL}")
 except Exception as e:
-    logger.error(f"❌ Supabase client loading failed: {e}")
+    logger.error(f"[ERROR] Supabase client loading failed: {e}")
 
 # Check Yotta configuration
 if settings.YOTTA_API_KEY and settings.YOTTA_URL:
-    logger.info(f"✅ Yotta configured: {settings.YOTTA_URL}")
+    logger.info(f"[OK] Yotta configured: {settings.YOTTA_URL}")
 else:
-    logger.warning("❌ Yotta not configured")
+    logger.warning("[WARN] Yotta not configured")
 
 # Lazy initialization - validate on first use
 try:
@@ -98,7 +98,7 @@ try:
 
     logger.info("Storage and database modules loaded (validation deferred)")
 except Exception as e:
-    logger.error(f"❌ Storage/Database module loading failed: {e}")
+    logger.error(f"[ERROR] Storage/Database module loading failed: {e}")
 
 # JWT Security scheme
 security = HTTPBearer()
@@ -114,13 +114,13 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup_event():
     print("\n" + "=" * 70)
-    print("🚀 Design Engine API Server Starting...")
-    print(f"🌍 Server URL: http://0.0.0.0:8000")
-    print(f"📄 API Docs: http://0.0.0.0:8000/docs")
-    print(f"🔍 Health Check: http://0.0.0.0:8000/health")
-    print("📝 Request logging is ENABLED")
+    print(">> Design Engine API Server Starting...")
+    print(f">> Server URL: http://0.0.0.0:8000")
+    print(f">> API Docs: http://0.0.0.0:8000/docs")
+    print(f">> Health Check: http://0.0.0.0:8000/health")
+    print(">> Request logging is ENABLED")
     print("=" * 70 + "\n")
-    logger.info("🚀 Design Engine API Server Started Successfully")
+    logger.info(">> Design Engine API Server Started Successfully")
 
 
 # Global exception handler for consistent error responses
@@ -149,10 +149,10 @@ if settings.ENABLE_METRICS:
         excluded_handlers=["/metrics", "/docs", "/openapi.json"],
         env_var_name="ENABLE_METRICS",
     )
-    instrumentator.instrument(app).expose(app, tags=["📊 Metrics"])
-    logger.info("✅ Essential metrics enabled")
+    instrumentator.instrument(app).expose(app, tags=["Metrics"])
+    logger.info("[OK] Essential metrics enabled")
 else:
-    logger.info("📊 Metrics disabled")
+    logger.info("[INFO] Metrics disabled")
 
 # CORS middleware - TODO: Update with actual frontend origins
 # Yash & Bhavesh: Provide your frontend URLs to replace ["*"]
@@ -177,7 +177,7 @@ async def log_requests(request: Request, call_next):
     start_time = time.time()
 
     # Log incoming request with print and logger
-    request_log = f"🌐 {request.method} {request.url.path} from {request.client.host if request.client else 'unknown'}"
+    request_log = f"[REQ] {request.method} {request.url.path} from {request.client.host if request.client else 'unknown'}"
     print(request_log)
     logger.info(request_log)
 
@@ -185,7 +185,7 @@ async def log_requests(request: Request, call_next):
 
     # Log response with timing
     process_time = time.time() - start_time
-    status_emoji = "✅" if 200 <= response.status_code < 300 else "❌" if response.status_code >= 400 else "⚠️"
+    status_emoji = "[OK]" if 200 <= response.status_code < 300 else "[ERR]" if response.status_code >= 400 else "[WARN]"
     response_log = f"{status_emoji} {request.method} {request.url.path} → {response.status_code} ({process_time:.3f}s)"
     print(response_log)
     logger.info(response_log)
@@ -206,13 +206,13 @@ try:
 
     if os.path.exists(geometry_dir):
         app.mount("/static/geometry", StaticFiles(directory=geometry_dir), name="geometry")
-        logger.info(f"✅ Static geometry files mounted at /static/geometry -> {geometry_dir}")
+        logger.info(f"[OK] Static geometry files mounted at /static/geometry -> {geometry_dir}")
     else:
         os.makedirs(geometry_dir, exist_ok=True)
         app.mount("/static/geometry", StaticFiles(directory=geometry_dir), name="geometry")
-        logger.info(f"✅ Created and mounted geometry directory: {geometry_dir}")
+        logger.info(f"[OK] Created and mounted geometry directory: {geometry_dir}")
 except Exception as e:
-    logger.warning(f"⚠️ Static files mount failed: {e}")
+    logger.warning(f"[WARN] Static files mount failed: {e}")
 
 # ============================================================================
 # PUBLIC ENDPOINTS (No Authentication Required)
@@ -220,37 +220,37 @@ except Exception as e:
 
 
 # Basic public health check
-@app.get("/health", tags=["📊 Public Health"])
+@app.get("/health", tags=["Public Health"])
 async def basic_health_check():
     """Basic health check - no authentication required"""
     return {"status": "ok", "service": "Design Engine API", "version": "0.1.0"}
 
 
 # Authentication endpoints
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["🔐 Authentication"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 
 # ============================================================================
 # PROTECTED ENDPOINTS (JWT Authentication Required)
 # ============================================================================
 
 # 1. System Health & Monitoring
-app.include_router(health.router, prefix="/api/v1", tags=["📊 System Health"], dependencies=[Depends(get_current_user)])
+app.include_router(health.router, prefix="/api/v1", tags=["System Health"], dependencies=[Depends(get_current_user)])
 app.include_router(monitoring_system.router, dependencies=[Depends(get_current_user)])
 
 # 2. Data Privacy & Security
 app.include_router(
-    data_privacy.router, prefix="/api/v1", tags=["🔐 Data Privacy"], dependencies=[Depends(get_current_user)]
+    data_privacy.router, prefix="/api/v1", tags=["Data Privacy"], dependencies=[Depends(get_current_user)]
 )
 
 # 2.1 Data Audit & Integrity
-app.include_router(data_audit.router, tags=["🔍 Data Audit"], dependencies=[Depends(get_current_user)])
+app.include_router(data_audit.router, tags=["Data Audit"], dependencies=[Depends(get_current_user)])
 
 # 3. Core Design Engine (Sequential Workflow)
 app.include_router(
-    generate.router, prefix="/api/v1", tags=["🎨 Design Generation"], dependencies=[Depends(get_current_user)]
+    generate.router, prefix="/api/v1", tags=["Design Generation"], dependencies=[Depends(get_current_user)]
 )
 app.include_router(
-    evaluate.router, prefix="/api/v1", tags=["📊 Design Evaluation"], dependencies=[Depends(get_current_user)]
+    evaluate.router, prefix="/api/v1", tags=["Design Evaluation"], dependencies=[Depends(get_current_user)]
 )
 app.include_router(
     iterate.router, prefix="/api/v1", tags=["🔄 Design Iteration"], dependencies=[Depends(get_current_user)]
@@ -279,19 +279,19 @@ async def get_design_history(
 app.include_router(
     compliance.router,
     prefix="/api/v1/compliance",
-    tags=["✅ Compliance & Validation"],
+    tags=["Compliance & Validation"],
     dependencies=[Depends(get_current_user)],
 )
 app.include_router(mcp_integration.router, dependencies=[Depends(get_current_user)])
 
 # 5. Multi-City Support
-app.include_router(city_router, prefix="/api/v1", tags=["🏙️ Multi-City"], dependencies=[Depends(get_current_user)])
+app.include_router(city_router, prefix="/api/v1", tags=["Multi-City"], dependencies=[Depends(get_current_user)])
 
 # Multi-city RL feedback endpoint
 from app.multi_city.rl_feedback_integration import multi_city_rl
 
 
-@app.post("/api/v1/rl/feedback/city", tags=["🏙️ Multi-City"])
+@app.post("/api/v1/rl/feedback/city", tags=["Multi-City"])
 async def city_rl_feedback(city: str, user_rating: float, request_body: dict, current_user=Depends(get_current_user)):
     """Submit city-specific RL feedback"""
     design_spec = request_body.get("design_spec", {})
@@ -313,7 +313,7 @@ app.include_router(
     workflow_management.router, prefix="/api/v1", tags=["🤖 BHIV Automations"], dependencies=[Depends(get_current_user)]
 )
 app.include_router(
-    prefect_router, prefix="/api/v1/prefect", tags=["🚀 Event Triggers"], dependencies=[Depends(get_current_user)]
+    prefect_router, prefix="/api/v1/prefect", tags=["Event Triggers"], dependencies=[Depends(get_current_user)]
 )
 
 # 8. File Management & Reports

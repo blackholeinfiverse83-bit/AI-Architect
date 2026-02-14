@@ -124,35 +124,36 @@ def history_panel():
             pid = p.get("spec_filename", "").replace(".json", "")
             ts = p.get("timestamp", "")[:19].replace("T", " ")
             prompt_text = p.get("prompt", "")
-            spec_fn = p.get("spec_filename")
-
-            with st.container():
-                cols = st.columns([8, 2])
+            
+            # Custom Card for History Item
+            st.markdown(f"""
+            <div class="stCard" style="margin-bottom: 10px; padding: 15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h4 style="margin:0;">{pid}</h4>
+                    <span style="color:#b0b0b0; font-size:0.8rem;">{ts}</span>
+                </div>
+                <p style="margin-top:10px; color:#e0e0e0; font-style:italic;">"{prompt_text[:150]}{'...' if len(prompt_text)>150 else ''}"</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            with st.expander("👉 View Details & JSON", expanded=False):
+                cols = st.columns([2, 1])
                 with cols[0]:
-                    st.markdown(f"**{ts} — {pid}**")
-                    st.write(prompt_text)
-                    with st.expander("View JSON spec", expanded=False):
-                        spec_path = os.path.join("data/specs", f"{pid}.json")
-                        if os.path.exists(spec_path):
-                            try:
-                                with open(spec_path) as sf:
-                                    spec = sf.read()
-                                st.code(spec, language="json")
-                            except Exception as e:
-                                st.write("Could not load spec:", e)
-                        else:
-                            st.write("Spec file not found.")
-
+                    spec_path = os.path.join("data/specs", f"{pid}.json")
+                    if os.path.exists(spec_path):
+                        try:
+                            with open(spec_path) as sf:
+                                spec = sf.read()
+                            st.code(spec, language="json")
+                        except Exception as e:
+                             st.error(f"Could not load spec: {e}")
+                
                 with cols[1]:
-                    # related actions count
                     related = [a for a in action_logs if a.get("spec_id") == pid]
-                    st.markdown(f"**Actions: {len(related)}**")
-                    if related:
-                        if st.button(f"Show actions {pid}", key=f"actions_{pid}"):
-                            with st.expander("Related Actions", expanded=True):
-                                for a in sorted(related, key=lambda x: x.get("timestamp"), reverse=True):
-                                    ats = a.get("timestamp", "")[:19].replace("T", " ")
-                                    st.write(f"- {ats} | {a.get('action')} — {a.get('details')}")
+                    st.markdown(f"**Actions ({len(related)})**")
+                    for a in sorted(related, key=lambda x: x.get("timestamp"), reverse=True):
+                         ats = a.get("timestamp", "")[11:19]
+                         st.markdown(f"- `{ats}` : **{a.get('action')}**")
 
     if filter_sel in ("All", "Actions"):
         # Simple actions list (searchable)

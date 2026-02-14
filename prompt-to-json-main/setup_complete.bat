@@ -3,7 +3,7 @@ echo ============================================
 echo BHIV AI Assistant - Complete Setup Script
 echo ============================================
 
-cd /d "c:\Users\Anmol\Desktop\Backend\backend"
+cd /d "%~dp0backend"
 
 echo.
 echo [1/6] Creating virtual environment...

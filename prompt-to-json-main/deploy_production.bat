@@ -3,7 +3,7 @@ echo ============================================
 echo BHIV AI Assistant - Production Deployment
 echo ============================================
 
-cd /d "c:\Users\Anmol\Desktop\Backend\backend"
+cd /d "%~dp0backend"
 
 echo [1/6] Activating virtual environment...
 call venv\Scripts\activate.bat

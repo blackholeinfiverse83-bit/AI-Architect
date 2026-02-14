@@ -3,7 +3,7 @@ echo ============================================
 echo Starting BHIV AI Assistant - All Services
 echo ============================================
 
-cd /d "c:\Users\Anmol\Desktop\Backend\backend"
+cd /d "%~dp0backend"
 call venv\Scripts\activate.bat
 
 echo.
