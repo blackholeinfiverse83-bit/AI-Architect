@@ -56,9 +56,9 @@ def create_demo_user():
 
 @router.post('/generate-video', response_model=VideoGenerationResponse, status_code=202)
 async def generate_video(
+    request: Request,
     file: UploadFile = File(...),
-    title: str = Form(...),
-    request: Request
+    title: str = Form(...)
 ):
     """Generate video from text script"""
     try:
