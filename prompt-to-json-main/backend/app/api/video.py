@@ -58,14 +58,12 @@ def create_demo_user():
 async def generate_video(
     file: UploadFile = File(...),
     title: str = Form(...),
-    request: Request = None,
-    current_user: Optional[str] = None
+    request: Request
 ):
     """Generate video from text script"""
     try:
         # Get current user (optional authentication)
-        if request:
-            current_user = get_current_user_optional(request)
+        current_user = get_current_user_optional(request)
         
         # Handle unauthenticated requests
         if not current_user:
@@ -275,13 +273,11 @@ async def video_health():
 @router.get('/contents', response_model=ContentListResponse)
 async def list_contents(
     limit: int = 20,
-    request: Request = None,
-    current_user: Optional[str] = None
+    request: Request
 ):
     """List all generated videos"""
     # Get current user (optional authentication)
-    if request:
-        current_user = get_current_user_optional(request)
+    current_user = get_current_user_optional(request)
     
     items = []
     
