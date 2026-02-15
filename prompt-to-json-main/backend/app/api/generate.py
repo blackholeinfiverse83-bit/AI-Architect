@@ -44,6 +44,7 @@ def calculate_estimated_cost(spec_json: Dict) -> float:
         # Design type base costs (INR per sq meter)
         base_costs = {
             "house": 25000,  # ₹25k per sqm for house construction
+            "apartment": 25000,  # ₹25k per sqm for apartment construction
             "building": 30000,  # ₹30k per sqm for commercial building
             "office": 15000,  # ₹15k per sqm for office interiors
             "kitchen": 35000,  # ₹35k per sqm for kitchen renovation
@@ -111,6 +112,7 @@ def calculate_estimated_cost(spec_json: Dict) -> float:
         # Minimum costs by design type
         min_costs = {
             "house": 2500000,  # Min ₹25 lakhs for house
+            "apartment": 2000000,  # Min ₹20 lakhs for apartment
             "building": 5000000,  # Min ₹50 lakhs for building
             "office": 200000,  # Min ₹2 lakhs for office
             "kitchen": 300000,  # Min ₹3 lakhs for kitchen
@@ -204,7 +206,21 @@ async def generate_design(request: GenerateRequest):
 
         print(f"✅ Input validation passed")
 
-        # 2. CALL LM
+        # 2. EXTRACT BUDGET FROM CONTEXT OR CONSTRAINTS
+        budget = None
+        # Try context first (frontend sends it here)
+        if request.context and "budget" in request.context:
+            budget = float(request.context.get("budget", 0))
+        # Fallback to constraints if available
+        elif hasattr(request, "constraints") and request.constraints and "budget" in request.constraints:
+            budget = float(request.constraints.get("budget", 0))
+        
+        if budget and budget > 0:
+            print(f"💰 Budget provided: ₹{budget:,.0f}")
+        else:
+            print(f"⚠️ No budget provided, using calculated cost")
+
+        # 3. CALL LM
         try:
             print(f"🤖 Calling LM with prompt: '{request.prompt[:30]}...'")
             lm_params = request.context or {}
@@ -215,6 +231,12 @@ async def generate_design(request: GenerateRequest):
                     "style": getattr(request, "style", "modern"),
                 }
             )
+            
+            # Add budget to context for LM to use
+            if budget and budget > 0:
+                if "context" not in lm_params:
+                    lm_params["context"] = {}
+                lm_params["context"]["budget"] = budget
 
             lm_result = await lm_run(request.prompt, lm_params)
             spec_json = lm_result.get("spec_json")
@@ -229,10 +251,22 @@ async def generate_design(request: GenerateRequest):
             logger.error(f"LM call failed: {str(e)}", exc_info=True)
             raise HTTPException(status_code=503, detail="LM service unavailable")
 
-        # 3. CALCULATE COST AND ENHANCE SPEC
+        # 4. CALCULATE COST AND ENHANCE SPEC
         print(f"💰 Calculating cost for {len(spec_json.get('objects', []))} objects...")
-        estimated_cost = calculate_estimated_cost(spec_json)
-        print(f"✅ Estimated cost: ₹{estimated_cost:,.0f}")
+        calculated_cost = calculate_estimated_cost(spec_json)
+        
+        # If budget is provided, use it as the estimated cost (user's constraint)
+        if budget and budget > 0:
+            # Use budget as the estimated cost - this is what the user specified
+            estimated_cost = budget
+            print(f"✅ Using user's budget as estimated cost: ₹{estimated_cost:,.0f} (calculated: ₹{calculated_cost:,.0f})")
+            
+            # If calculated cost is significantly higher, log a warning
+            if calculated_cost > budget * 1.2:
+                print(f"⚠️ Warning: Calculated cost (₹{calculated_cost:,.0f}) is {((calculated_cost/budget - 1) * 100):.0f}% higher than budget")
+        else:
+            estimated_cost = calculated_cost
+            print(f"✅ Estimated cost (calculated): ₹{estimated_cost:,.0f}")
 
         spec_json["metadata"] = spec_json.get("metadata", {})
         spec_json["metadata"].update(
@@ -362,8 +396,13 @@ async def generate_design(request: GenerateRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in generate: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Unexpected error during spec generation")
+        error_msg = str(e)
+        import traceback
+        error_trace = traceback.format_exc()
+        logger.error(f"Unexpected error in generate: {error_msg}", exc_info=True)
+        print(f"❌ ERROR DETAILS: {error_msg}")
+        print(f"❌ TRACEBACK:\n{error_trace}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error during spec generation: {error_msg}")
 
 
 @router.get("/specs/{spec_id}", response_model=GenerateResponse)

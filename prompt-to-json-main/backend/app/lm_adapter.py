@@ -159,7 +159,11 @@ def generate_design_from_prompt(prompt: str, params: dict) -> dict:
     logger.info(f"TEMPLATE_FALLBACK: Analyzing prompt: {prompt_lower}")
 
     # Detect design type - prioritize larger structures first
-    if any(word in prompt_lower for word in ["house", "home", "building", "residential", "story", "floor"]):
+    # Check for apartment/flat/BHK first (full residential units)
+    if any(word in prompt_lower for word in ["apartment", "flat", "bhk", "bedroom apartment"]):
+        logger.info("DESIGN_DEBUG: Detected APARTMENT design")
+        return generate_apartment_design(prompt, params)
+    elif any(word in prompt_lower for word in ["house", "home", "building", "residential", "story", "floor"]):
         logger.info("DESIGN_DEBUG: Detected HOUSE design")
         return generate_house_design(prompt, params)
     elif any(word in prompt_lower for word in ["kitchen", "cook", "cabinet", "countertop"]):
@@ -565,20 +569,37 @@ def generate_bathroom_design(prompt: str, params: dict) -> dict:
 
 
 def generate_bedroom_design(prompt: str, params: dict) -> dict:
-    """Generate bedroom design"""
+    """Generate bedroom design with budget optimization"""
+    context = params.get("context", {})
+    budget = context.get("budget", 500000)  # Default ₹5L for bedroom
+    
+    # Budget-based sizing and material selection
+    if budget <= 300000:  # ₹3L: Basic bedroom
+        width, length = 3.5, 4.0
+        floor_material = "wood_laminate"
+        furniture_material = "wood_pine"
+    elif budget <= 800000:  # ₹8L: Standard bedroom
+        width, length = 4, 4.5
+        floor_material = "wood_hardwood"
+        furniture_material = "wood_oak"
+    else:  # ₹8L+: Premium bedroom
+        width, length = 4.5, 5.0
+        floor_material = "wood_hardwood"
+        furniture_material = "wood_oak"
+    
     objects = [
         {
             "id": "bedroom_floor",
             "type": "floor",
-            "material": "wood_hardwood",
+            "material": floor_material,
             "color_hex": "#DEB887",
-            "dimensions": {"width": 4, "length": 4.5},
+            "dimensions": {"width": width, "length": length},
         },
         {
             "id": "bed",
             "type": "furniture",
             "subtype": "bed",
-            "material": "wood_oak",
+            "material": furniture_material,
             "color_hex": "#8B4513",
             "dimensions": {"width": 2, "length": 2.1, "height": 0.6},
         },
@@ -586,7 +607,7 @@ def generate_bedroom_design(prompt: str, params: dict) -> dict:
             "id": "dresser",
             "type": "furniture",
             "subtype": "dresser",
-            "material": "wood_oak",
+            "material": furniture_material,
             "color_hex": "#8B4513",
             "dimensions": {"width": 1.5, "depth": 0.5, "height": 1},
         },
@@ -594,17 +615,158 @@ def generate_bedroom_design(prompt: str, params: dict) -> dict:
             "id": "closet",
             "type": "storage",
             "subtype": "closet",
-            "material": "wood_oak",
+            "material": furniture_material,
             "dimensions": {"width": 2, "depth": 0.6, "height": 2.4},
         },
     ]
+    
+    # Use budget as estimated cost (will be adjusted in generate.py if needed)
+    estimated_cost = min(budget, 2000000)  # Cap at ₹20L for bedroom
 
     return {
         "objects": objects,
         "design_type": "bedroom",
         "style": "modern",
-        "dimensions": {"width": 4, "length": 4.5, "height": 2.4},
-        "estimated_cost": {"total": 300000, "currency": "INR"},
+        "dimensions": {"width": width, "length": length, "height": 2.4},
+        "estimated_cost": {"total": estimated_cost, "currency": "INR"},
+    }
+
+
+def generate_apartment_design(prompt: str, params: dict) -> dict:
+    """Generate apartment/flat design with multiple bedrooms based on BHK count"""
+    prompt_lower = prompt.lower()
+    context = params.get("context", {})
+    budget = context.get("budget", 5000000)  # Default ₹50L for apartment
+    
+    # Extract BHK count from prompt
+    bhk_count = 1
+    if "1 bhk" in prompt_lower or "1bhk" in prompt_lower:
+        bhk_count = 1
+    elif "2 bhk" in prompt_lower or "2bhk" in prompt_lower:
+        bhk_count = 2
+    elif "3 bhk" in prompt_lower or "3bhk" in prompt_lower:
+        bhk_count = 3
+    elif "4 bhk" in prompt_lower or "4bhk" in prompt_lower:
+        bhk_count = 4
+    else:
+        # Try to extract number before "bhk"
+        import re
+        bhk_match = re.search(r'(\d+)\s*bhk', prompt_lower)
+        if bhk_match:
+            bhk_count = int(bhk_match.group(1))
+    
+    logger.info(f"DESIGN_DEBUG: Detected {bhk_count} BHK apartment")
+    
+    # Calculate apartment dimensions based on BHK count
+    # Standard sizes: 1BHK ~600 sqft, 2BHK ~900 sqft, 3BHK ~1200 sqft, 4BHK ~1500 sqft
+    sqft_per_bhk = {
+        1: 600,
+        2: 900,
+        3: 1200,
+        4: 1500
+    }
+    total_sqft = sqft_per_bhk.get(bhk_count, 1200)
+    
+    # Convert to meters (1 sqft = 0.0929 sqm, assume square layout)
+    total_sqm = total_sqft * 0.0929
+    side_length = (total_sqm ** 0.5)  # Square root for square layout
+    
+    # Adjust based on budget
+    if budget > 0:
+        # Higher budget = larger apartment
+        budget_multiplier = min(1.5, budget / 5000000)  # Scale up to 1.5x for higher budgets
+        side_length *= budget_multiplier
+    
+    width = round(side_length, 2)
+    length = round(side_length, 2)
+    
+    objects = []
+    
+    # Add main structure
+    objects.append({
+        "id": "apartment_structure",
+        "type": "structure",
+        "material": "concrete",
+        "color_hex": "#E0E0E0",
+        "dimensions": {"width": width, "length": length, "height": 2.7},
+    })
+    
+    # Add living room (common area)
+    living_room_size = min(5, width * 0.4)  # 40% of width, max 5m
+    objects.append({
+        "id": "living_room",
+        "type": "room",
+        "subtype": "living",
+        "material": "wood_hardwood",
+        "color_hex": "#DEB887",
+        "dimensions": {"width": living_room_size, "length": length * 0.5, "height": 2.7},
+    })
+    
+    # Add bedrooms based on BHK count
+    bedroom_size = min(4, width * 0.3)  # Each bedroom ~30% of width, max 4m
+    for i in range(bhk_count):
+        objects.append({
+            "id": f"bedroom_{i+1}",
+            "type": "room",
+            "subtype": "bedroom",
+            "material": "wood_hardwood",
+            "color_hex": "#DEB887",
+            "dimensions": {"width": bedroom_size, "length": bedroom_size, "height": 2.7},
+        })
+        # Add bed in each bedroom
+        objects.append({
+            "id": f"bed_{i+1}",
+            "type": "furniture",
+            "subtype": "bed",
+            "material": "wood_oak",
+            "color_hex": "#8B4513",
+            "dimensions": {"width": 2, "length": 2.1, "height": 0.6},
+        })
+    
+    # Add kitchen
+    objects.append({
+        "id": "kitchen",
+        "type": "room",
+        "subtype": "kitchen",
+        "material": "tile_ceramic",
+        "color_hex": "#F5F5DC",
+        "dimensions": {"width": 3, "length": 3, "height": 2.7},
+    })
+    
+    # Add bathroom(s) - at least 1, more for larger apartments
+    bathroom_count = max(1, bhk_count - 1)
+    for i in range(bathroom_count):
+        objects.append({
+            "id": f"bathroom_{i+1}",
+            "type": "room",
+            "subtype": "bathroom",
+            "material": "tile_ceramic",
+            "color_hex": "#FFFFFF",
+            "dimensions": {"width": 2, "length": 2.5, "height": 2.7},
+        })
+    
+    # Calculate estimated cost based on BHK and budget
+    base_cost_per_bhk = {
+        1: 3000000,  # ₹30L for 1BHK
+        2: 4500000,  # ₹45L for 2BHK
+        3: 6000000,  # ₹60L for 3BHK
+        4: 8000000,  # ₹80L for 4BHK
+    }
+    base_cost = base_cost_per_bhk.get(bhk_count, 6000000)
+    
+    # Use budget if provided and reasonable, otherwise use calculated
+    if budget > 0 and budget >= base_cost * 0.5:  # Budget should be at least 50% of base
+        estimated_cost = budget
+    else:
+        estimated_cost = base_cost
+    
+    return {
+        "objects": objects,
+        "design_type": "apartment",
+        "style": "modern",
+        "dimensions": {"width": width, "length": length, "height": 2.7},
+        "bhk_count": bhk_count,
+        "estimated_cost": {"total": estimated_cost, "currency": "INR"},
     }
 
 

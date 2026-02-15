@@ -105,6 +105,44 @@ def create_object_geometry(obj: Dict) -> Tuple[List[Tuple[float, float, float]],
         return create_balcony_geometry(dimensions)
 
     # Room/Interior objects
+    elif obj_type == "room":
+        # Handle different room subtypes
+        subtype = obj.get("subtype", "")
+        if subtype == "bedroom":
+            return create_room_geometry(dimensions, with_bed=True)
+        elif subtype == "living" or subtype == "living_room":
+            return create_room_geometry(dimensions, with_furniture=True)
+        elif subtype == "kitchen":
+            return create_room_geometry(dimensions, with_cabinets=True)
+        elif subtype == "bathroom":
+            return create_room_geometry(dimensions, with_fixtures=True)
+        else:
+            return create_room_geometry(dimensions)
+    elif obj_type == "structure":
+        return create_structure_geometry(dimensions)
+    elif obj_type == "furniture":
+        # Handle furniture subtypes
+        subtype = obj.get("subtype", "")
+        if subtype == "bed":
+            return create_bed_geometry(dimensions)
+        elif subtype == "sofa":
+            return create_sofa_geometry(dimensions)
+        elif subtype == "table":
+            return create_table_geometry(dimensions)
+        elif subtype == "desk":
+            return create_table_geometry(dimensions)
+        elif subtype == "dresser":
+            return create_wardrobe_geometry(dimensions)
+        elif subtype == "entertainment" or subtype == "tv_stand":
+            return create_tv_unit_geometry(dimensions)
+        else:
+            return create_box_geometry(dimensions)
+    elif obj_type == "storage":
+        subtype = obj.get("subtype", "")
+        if subtype == "closet" or subtype == "wardrobe":
+            return create_wardrobe_geometry(dimensions)
+        else:
+            return create_box_geometry(dimensions)
     elif obj_type == "bed":
         return create_bed_geometry(dimensions)
     elif obj_type == "sofa":
@@ -859,6 +897,99 @@ def create_screen_geometry(dims: Dict) -> Tuple[List[Tuple[float, float, float]]
         [1, 5, 6],
         [1, 6, 2],
     ]
+    return vertices, faces
+
+
+def create_room_geometry(dims: Dict, with_bed: bool = False, with_furniture: bool = False, with_cabinets: bool = False, with_fixtures: bool = False) -> Tuple[List[Tuple[float, float, float]], List[List[int]]]:
+    """Create room geometry (floor + walls)"""
+    w = dims.get("width", 4.0)
+    l = dims.get("length", 4.0)
+    h = dims.get("height", 2.7)
+    wall_thickness = 0.2
+    
+    vertices = []
+    faces = []
+    
+    # Floor
+    floor_verts = [(0, 0, 0), (w, 0, 0), (w, l, 0), (0, l, 0)]
+    floor_faces = [[0, 1, 2], [0, 2, 3]]
+    vertices.extend(floor_verts)
+    base_idx = len(vertices) - 4
+    faces.extend([[base_idx + f[0], base_idx + f[1], base_idx + f[2]] for f in floor_faces])
+    
+    # Four walls (simplified - just front and back for now)
+    # Front wall
+    fw_verts = [(0, 0, 0), (w, 0, 0), (w, wall_thickness, 0), (0, wall_thickness, 0),
+                (0, 0, h), (w, 0, h), (w, wall_thickness, h), (0, wall_thickness, h)]
+    fw_faces = [[0,1,2], [0,2,3], [4,7,6], [4,6,5], [0,4,5], [0,5,1], [2,6,7], [2,7,3], [0,3,7], [0,7,4], [1,5,6], [1,6,2]]
+    base_idx = len(vertices)
+    vertices.extend(fw_verts)
+    faces.extend([[base_idx + f[0], base_idx + f[1], base_idx + f[2]] for f in fw_faces])
+    
+    # Back wall
+    bw_verts = [(0, l-wall_thickness, 0), (w, l-wall_thickness, 0), (w, l, 0), (0, l, 0),
+                (0, l-wall_thickness, h), (w, l-wall_thickness, h), (w, l, h), (0, l, h)]
+    base_idx = len(vertices)
+    vertices.extend(bw_verts)
+    faces.extend([[base_idx + f[0], base_idx + f[1], base_idx + f[2]] for f in fw_faces])
+    
+    return vertices, faces
+
+
+def create_structure_geometry(dims: Dict) -> Tuple[List[Tuple[float, float, float]], List[List[int]]]:
+    """Create building structure geometry (walls + floor + ceiling)"""
+    w = dims.get("width", 10.0)
+    l = dims.get("length", 10.0)
+    h = dims.get("height", 3.0)
+    wall_thickness = 0.3
+    
+    vertices = []
+    faces = []
+    
+    # Floor
+    floor_verts = [(0, 0, 0), (w, 0, 0), (w, l, 0), (0, l, 0)]
+    floor_faces = [[0, 1, 2], [0, 2, 3]]
+    vertices.extend(floor_verts)
+    base_idx = len(vertices) - 4
+    faces.extend([[base_idx + f[0], base_idx + f[1], base_idx + f[2]] for f in floor_faces])
+    
+    # Ceiling
+    ceiling_verts = [(0, 0, h), (w, 0, h), (w, l, h), (0, l, h)]
+    base_idx = len(vertices)
+    vertices.extend(ceiling_verts)
+    faces.extend([[base_idx + 0, base_idx + 2, base_idx + 1], [base_idx + 0, base_idx + 3, base_idx + 2]])
+    
+    # Four walls
+    fw_faces = [[0,1,2], [0,2,3], [4,7,6], [4,6,5], [0,4,5], [0,5,1], [2,6,7], [2,7,3], [0,3,7], [0,7,4], [1,5,6], [1,6,2]]
+    
+    # Front wall
+    fw_verts = [(0, 0, 0), (w, 0, 0), (w, wall_thickness, 0), (0, wall_thickness, 0),
+                (0, 0, h), (w, 0, h), (w, wall_thickness, h), (0, wall_thickness, h)]
+    base_idx = len(vertices)
+    vertices.extend(fw_verts)
+    faces.extend([[base_idx + f[0], base_idx + f[1], base_idx + f[2]] for f in fw_faces])
+    
+    # Back wall
+    bw_verts = [(0, l-wall_thickness, 0), (w, l-wall_thickness, 0), (w, l, 0), (0, l, 0),
+                (0, l-wall_thickness, h), (w, l-wall_thickness, h), (w, l, h), (0, l, h)]
+    base_idx = len(vertices)
+    vertices.extend(bw_verts)
+    faces.extend([[base_idx + f[0], base_idx + f[1], base_idx + f[2]] for f in fw_faces])
+    
+    # Left wall
+    lw_verts = [(0, 0, 0), (wall_thickness, 0, 0), (wall_thickness, l, 0), (0, l, 0),
+                (0, 0, h), (wall_thickness, 0, h), (wall_thickness, l, h), (0, l, h)]
+    base_idx = len(vertices)
+    vertices.extend(lw_verts)
+    faces.extend([[base_idx + f[0], base_idx + f[1], base_idx + f[2]] for f in fw_faces])
+    
+    # Right wall
+    rw_verts = [(w-wall_thickness, 0, 0), (w, 0, 0), (w, l, 0), (w-wall_thickness, l, 0),
+                (w-wall_thickness, 0, h), (w, 0, h), (w, l, h), (w-wall_thickness, l, h)]
+    base_idx = len(vertices)
+    vertices.extend(rw_verts)
+    faces.extend([[base_idx + f[0], base_idx + f[1], base_idx + f[2]] for f in fw_faces])
+    
     return vertices, faces
 
 

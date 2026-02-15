@@ -174,7 +174,7 @@ def init_db():
         # Create tables in dependency order
         from app.models import AuditLog
         from app.models import Base as ModelsBase
-        from app.models import ComplianceCheck, Evaluation, Iteration, RefreshToken, RLFeedback, Spec, User, WorkflowRun
+        from app.models import ComplianceCheck, Content, Evaluation, Iteration, RefreshToken, RLFeedback, Spec, User, WorkflowRun
 
         # Drop and recreate if in development
         if settings.ENVIRONMENT == "development":

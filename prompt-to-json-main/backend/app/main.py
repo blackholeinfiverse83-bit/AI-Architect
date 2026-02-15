@@ -28,6 +28,7 @@ from app.api import (
     reports,
     rl,
     switch,
+    video,
     vr,
     workflow_consolidation,
 )
@@ -186,7 +187,7 @@ async def log_requests(request: Request, call_next):
     # Log response with timing
     process_time = time.time() - start_time
     status_emoji = "[OK]" if 200 <= response.status_code < 300 else "[ERR]" if response.status_code >= 400 else "[WARN]"
-    response_log = f"{status_emoji} {request.method} {request.url.path} → {response.status_code} ({process_time:.3f}s)"
+    response_log = f"{status_emoji} {request.method} {request.url.path} -> {response.status_code} ({process_time:.3f}s)"
     print(response_log)
     logger.info(response_log)
 
@@ -349,6 +350,9 @@ app.include_router(multi_city_testing.router, dependencies=[Depends(get_current_
 
 # 10. 3D Geometry Generation
 app.include_router(geometry_generator.router, dependencies=[Depends(get_current_user)])
+
+# 11. Video Generation
+app.include_router(video.router, prefix="/api/v1/video", tags=["Video Generation"])
 
 
 # Note: /api/v1/rl/feedback/city/{city}/summary endpoint is handled by rl.router

@@ -6,7 +6,8 @@ const API_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://127.0.0.1:8000'
     : 'https://design-engine-api-h10a.onrender.com';
 
-const VIDEO_API_BASE_URL = 'http://127.0.0.1:9000';
+// Video API now uses the same backend
+const VIDEO_API_BASE_URL = API_BASE_URL;
 
 // State Management
 const state = {
@@ -59,7 +60,7 @@ async function checkAPIHealth() {
 
 async function checkVideoAPIHealth() {
     try {
-        const response = await fetch(`${VIDEO_API_BASE_URL}/health`, {
+        const response = await fetch(`${VIDEO_API_BASE_URL}/api/v1/video/health`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' }
         });
@@ -131,33 +132,10 @@ async function login(username, password) {
     }
 }
 
+// Video API now uses the same backend, so no separate login needed
 async function loginVideoAPI() {
-    try {
-        // Try to login to video API with demo credentials
-        const formData = new URLSearchParams();
-        formData.append('username', 'demo');
-        formData.append('password', 'demo1234');
-
-        const response = await fetch(`${VIDEO_API_BASE_URL}/users/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: formData
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            // Store video API token separately if needed
-            if (data.access_token) {
-                // Use the same auth token state for video API
-                state.authToken = data.access_token;
-            }
-            return data;
-        }
-        return null;
-    } catch (error) {
-        console.log('Video API login failed, continuing without auth:', error);
-        return null;
-    }
+    // Video API is now part of main backend, use existing auth
+    return null;
 }
 
 async function apiPost(endpoint, payload = {}) {
@@ -760,12 +738,19 @@ async function handleGenerateVideo() {
         formData.append('file', file);
         formData.append('title', title);
 
-        const response = await videoApiPost('/generate-video', formData);
+        const response = await videoApiPost('/api/v1/video/generate-video', formData);
         const data = await response.json();
 
         if (response.ok) {
             showResult('video-gen-result', data);
-            handleRefreshVideoList();
+            // Add new video ID to sessionStorage
+            if (data.content_id) {
+                const existingIds = JSON.parse(sessionStorage.getItem('videoIds') || '[]');
+                existingIds.push(data.content_id);
+                sessionStorage.setItem('videoIds', JSON.stringify(existingIds));
+            }
+            // Refresh video list to show the new video
+            await handleRefreshVideoList();
         } else {
             // If 401, try to login and retry
             if (response.status === 401) {
@@ -794,17 +779,62 @@ async function handleRefreshVideoList() {
     const gallery = document.getElementById('video-gallery');
 
     try {
-        const response = await videoApiGet('/contents');
+        const response = await videoApiGet('/api/v1/video/contents');
         const data = await response.json();
 
         if (response.ok) {
             state.videos = data.items || [];
+            // Store video IDs in sessionStorage for cleanup on refresh
+            const videoIds = state.videos.map(v => v.content_id);
+            sessionStorage.setItem('videoIds', JSON.stringify(videoIds));
             renderVideoGallery(state.videos);
         } else {
             gallery.innerHTML = `<div class="info-item error">Error loading videos: ${data.message || 'Unknown error'}</div>`;
         }
     } catch (error) {
         gallery.innerHTML = `<div class="info-item error">Error connecting to Video API: ${error.message}</div>`;
+    }
+}
+
+async function deleteVideo(contentId) {
+    try {
+        const headers = {};
+        if (state.authToken) {
+            headers['Authorization'] = `Bearer ${state.authToken}`;
+        }
+
+        const response = await fetch(`${VIDEO_API_BASE_URL}/api/v1/video/content/${contentId}`, {
+            method: 'DELETE',
+            headers
+        });
+
+        return response.ok;
+    } catch (error) {
+        console.error(`Failed to delete video ${contentId}:`, error);
+        return false;
+    }
+}
+
+async function cleanupVideosOnRefresh() {
+    // Get video IDs from sessionStorage
+    const videoIdsJson = sessionStorage.getItem('videoIds');
+    if (!videoIdsJson) {
+        return;
+    }
+
+    try {
+        const videoIds = JSON.parse(videoIdsJson);
+        // Delete all videos in parallel (fire and forget - don't wait)
+        videoIds.forEach(contentId => {
+            deleteVideo(contentId).catch(err => {
+                console.error(`Error deleting video ${contentId}:`, err);
+            });
+        });
+        
+        // Clear sessionStorage after cleanup
+        sessionStorage.removeItem('videoIds');
+    } catch (error) {
+        console.error('Error during video cleanup:', error);
     }
 }
 
@@ -819,8 +849,8 @@ function renderVideoGallery(videos) {
     gallery.innerHTML = videos.map(video => `
         <div class="video-card" data-id="${video.content_id}">
             <div class="video-player-container">
-                <video controls preload="metadata" crossorigin="anonymous">
-                    <source src="${VIDEO_API_BASE_URL}${video.stream_url}" type="video/mp4">
+                <video controls preload="metadata" crossorigin="anonymous" style="width: 100%; max-height: 400px;">
+                    <source src="${VIDEO_API_BASE_URL}${video.stream_url || `/api/v1/video/stream/${video.content_id}`}" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
             </div>
@@ -840,7 +870,7 @@ function renderVideoGallery(videos) {
                         }
                     })()}
                 </div>
-                <a href="${VIDEO_API_BASE_URL}${video.download_url || `/download/${video.content_id}`}" class="btn btn-primary btn-sm mt-2" style="width: 100%; display: block; text-align: center; text-decoration: none;" download>
+                <a href="${VIDEO_API_BASE_URL}${video.download_url || `/api/v1/video/download/${video.content_id}`}" class="btn btn-primary btn-sm mt-2" style="width: 100%; display: block; text-align: center; text-decoration: none;" download="${video.content_id}.mp4">
                     <span>⬇️</span> Download Video
                 </a>
             </div>
@@ -848,27 +878,6 @@ function renderVideoGallery(videos) {
     `).join('');
 }
 
-async function loadRecommendations(contentId) {
-    const tagContainer = document.getElementById(`tags-${contentId}`);
-    const originalContent = tagContainer.innerHTML;
-    tagContainer.innerHTML = '<span class="spinner"></span>';
-
-    try {
-        const response = await videoApiGet(`/recommend-tags/${contentId}`);
-        const data = await response.json();
-
-        if (response.ok) {
-            const recommended = data.recommended_tags || [];
-            tagContainer.innerHTML = originalContent + recommended.map(tag => `<span class="tag recommended">${tag}</span>`).join('');
-        } else {
-            tagContainer.innerHTML = originalContent;
-            alert('Failed to load recommendations');
-        }
-    } catch (error) {
-        tagContainer.innerHTML = originalContent;
-        alert('Error connecting to AI Agent');
-    }
-}
 
 // Tab Navigation
 function setupTabs() {
@@ -890,6 +899,11 @@ function setupTabs() {
                     content.classList.add('active');
                 }
             });
+            
+            // Auto-load videos when Video Lab tab is opened
+            if (tabId === 'videogen') {
+                handleRefreshVideoList();
+            }
         });
     });
 }
@@ -912,6 +926,42 @@ document.addEventListener('DOMContentLoaded', () => {
         state.user = null;
         document.getElementById('main-screen').classList.add('hidden');
         document.getElementById('login-screen').classList.remove('hidden');
+    });
+
+    // Cleanup videos from previous session on page load
+    cleanupVideosOnRefresh();
+
+    // Cleanup videos on page refresh/unload
+    window.addEventListener('beforeunload', () => {
+        // Try to cleanup current session videos (fire and forget)
+        const videoIdsJson = sessionStorage.getItem('videoIds');
+        if (videoIdsJson) {
+            try {
+                const videoIds = JSON.parse(videoIdsJson);
+                videoIds.forEach(contentId => {
+                    // Use fetch with keepalive for fire-and-forget deletion
+                    const headers = {};
+                    if (state.authToken) {
+                        headers['Authorization'] = `Bearer ${state.authToken}`;
+                    }
+                    fetch(`${VIDEO_API_BASE_URL}/api/v1/video/content/${contentId}`, {
+                        method: 'DELETE',
+                        headers,
+                        keepalive: true
+                    }).catch(() => {}); // Ignore errors
+                });
+            } catch (e) {
+                // Ignore errors during unload
+            }
+        }
+    });
+    
+    // Also cleanup on page visibility change (when user switches tabs)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // Page is now hidden, cleanup videos
+            cleanupVideosOnRefresh();
+        }
     });
 
     // Setup all button handlers

@@ -559,6 +559,29 @@ class RLLiveFeedback(Base):
 # ============================================================================
 
 
+class Content(Base):
+    """Video and media content storage"""
+
+    __tablename__ = "content"
+
+    content_id = Column(String(50), primary_key=True)
+    uploader_id = Column(String(50), index=True)
+    title = Column(String(200))
+    description = Column(Text)
+    file_path = Column(String(500))
+    content_type = Column(String(50), default="video/mp4")
+    duration_ms = Column(Integer)
+    uploaded_at = Column(Float)  # Unix timestamp
+    authenticity_score = Column(Float)
+    current_tags = Column(Text)  # JSON string
+    views = Column(Integer, default=0)
+    likes = Column(Integer, default=0)
+    shares = Column(Integer, default=0)
+
+    def __repr__(self):
+        return f"<Content {self.content_id}>"
+
+
 class WorkflowRun(Base):
     """Track Prefect workflow executions"""
 
