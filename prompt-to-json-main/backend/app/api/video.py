@@ -272,8 +272,8 @@ async def video_health():
 
 @router.get('/contents', response_model=ContentListResponse)
 async def list_contents(
-    limit: int = 20,
-    request: Request
+    request: Request,
+    limit: int = 20
 ):
     """List all generated videos"""
     # Get current user (optional authentication)
