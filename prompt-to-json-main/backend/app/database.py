@@ -8,8 +8,9 @@ from contextlib import contextmanager
 from typing import Generator
 
 from app.config import settings
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPBearer
+from typing import Optional
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
@@ -457,6 +458,40 @@ def get_current_user(token: str = Depends(HTTPBearer())) -> str:
             detail="Authentication failed",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+def get_current_user_optional(request: Request) -> Optional[str]:
+    """
+    Optional JWT authentication dependency
+    Returns username if token is valid, None otherwise (no exception)
+    """
+    try:
+        from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+        import jwt
+        from app.config import settings
+        
+        # Try to get authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return None
+        
+        # Extract token
+        token_str = auth_header.replace("Bearer ", "").strip()
+        if not token_str:
+            return None
+        
+        # Decode and validate JWT token
+        payload = jwt.decode(token_str, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        
+        username = payload.get("sub")
+        return username if username else None
+        
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, jwt.DecodeError, jwt.InvalidSignatureError):
+        # Token invalid or expired - return None instead of raising
+        return None
+    except Exception:
+        # Any other error - return None
+        return None
 
 
 # Export commonly used items

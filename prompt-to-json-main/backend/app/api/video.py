@@ -10,7 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Request
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from pydantic import BaseModel
-from app.database import get_current_user
+from app.database import get_current_user_optional
 
 logger = logging.getLogger(__name__)
 
@@ -58,14 +58,19 @@ def create_demo_user():
 async def generate_video(
     file: UploadFile = File(...),
     title: str = Form(...),
-    current_user: Optional[str] = Depends(get_current_user)
+    request: Request = None,
+    current_user: Optional[str] = None
 ):
     """Generate video from text script"""
     try:
+        # Get current user (optional authentication)
+        if request:
+            current_user = get_current_user_optional(request)
+        
         # Handle unauthenticated requests
         if not current_user:
-            create_demo_user()
-            user_id = "demo"
+            demo_user = create_demo_user()
+            user_id = demo_user.id if demo_user else "demo"
         else:
             user_id = current_user if isinstance(current_user, str) else getattr(current_user, 'username', 'demo')
         
@@ -270,9 +275,14 @@ async def video_health():
 @router.get('/contents', response_model=ContentListResponse)
 async def list_contents(
     limit: int = 20,
-    current_user: Optional[str] = Depends(get_current_user)
+    request: Request = None,
+    current_user: Optional[str] = None
 ):
     """List all generated videos"""
+    # Get current user (optional authentication)
+    if request:
+        current_user = get_current_user_optional(request)
+    
     items = []
     
     # Try database first
