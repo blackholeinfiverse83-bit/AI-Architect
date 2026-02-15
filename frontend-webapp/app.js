@@ -4,7 +4,7 @@
 // For Render deployment, update this to your backend URL:
 const API_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://127.0.0.1:8000'
-    : 'https://design-engine-api-h10a.onrender.com';
+    : 'https://design-engine-api-y8e7.onrender.com';
 
 // Video API now uses the same backend
 const VIDEO_API_BASE_URL = API_BASE_URL;
