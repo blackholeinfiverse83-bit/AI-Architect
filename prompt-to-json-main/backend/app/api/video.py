@@ -84,6 +84,9 @@ async def generate_video(
         if not script_content:
             raise HTTPException(status_code=400, detail="Empty script content")
         
+        # Memory optimization: Close file handle immediately after reading
+        await file.close()
+        
         # Generate content ID
         content_id = uuid.uuid4().hex[:12]
         
@@ -108,8 +111,15 @@ async def generate_video(
             if not lines:
                 raise HTTPException(status_code=400, detail="No valid lines in script")
             
+            # Memory optimization: Clear script_content after parsing (no longer needed)
+            del script_content
+            import gc
+            gc.collect()
+            
             # Load font with fallbacks
+            # Memory optimization: Use smaller font size (40 instead of 60) to reduce memory per frame
             font = None
+            font_size = 40  # Reduced from 60 to save memory (scaled for 640x360 resolution)
             font_paths = [
                 "C:/Windows/Fonts/arial.ttf",
                 "C:/Windows/Fonts/calibri.ttf",
@@ -121,7 +131,7 @@ async def generate_video(
             for font_path in font_paths:
                 try:
                     if os.path.exists(font_path):
-                        font = ImageFont.truetype(font_path, 60)
+                        font = ImageFont.truetype(font_path, font_size)
                         break
                 except:
                     continue
@@ -129,16 +139,22 @@ async def generate_video(
             if font is None:
                 font = ImageFont.load_default()
             
-            clips = []
+            # Memory optimization: Use lower resolution to reduce memory footprint
+            # Reduced from 1280x720 to 640x360 (75% less pixels = 75% less memory)
+            # This should fit within Render's 512MB free tier limit
+            video_width = 640
+            video_height = 360
             frame_duration = 3.0
-            max_width = 1200  # For 1280 width with margins
+            max_width = int(video_width * 0.9)  # 90% of width for margins
+            
+            clips = []
             
             for line in lines:
                 # Create black background clip
-                bg_clip = ColorClip(size=(1280, 720), color=(0, 0, 0), duration=frame_duration)
+                bg_clip = ColorClip(size=(video_width, video_height), color=(0, 0, 0), duration=frame_duration)
                 
                 # Create text image using PIL
-                img = Image.new('RGB', (1280, 720), (0, 0, 0))
+                img = Image.new('RGB', (video_width, video_height), (0, 0, 0))
                 draw = ImageDraw.Draw(img)
                 
                 # Handle text wrapping
@@ -174,8 +190,8 @@ async def generate_video(
                 text_width = bbox[2] - bbox[0]
                 text_height = bbox[3] - bbox[1]
                 
-                x = (1280 - text_width) // 2
-                y = (720 - text_height) // 2
+                x = (video_width - text_width) // 2
+                y = (video_height - text_height) // 2
                 
                 # Draw white text
                 draw.multiline_text((x, y), display_text, font=font, fill=(255, 255, 255), align='center')
@@ -187,28 +203,53 @@ async def generate_video(
                 # Combine background and text
                 frame_clip = CompositeVideoClip([bg_clip, text_clip])
                 clips.append(frame_clip)
+                
+                # Memory optimization: Clear intermediate objects immediately
+                del img_array
+                del img
+                del draw
+                del text_clip
+                del bg_clip
+                # Force garbage collection every 5 frames to prevent memory buildup
+                if len(clips) % 5 == 0:
+                    import gc
+                    gc.collect()
             
             if not clips:
                 raise HTTPException(status_code=400, detail="No valid lines in script")
             
             # Concatenate clips
             final_clip = concatenate_videoclips(clips, method="compose")
+            
+            # Memory optimization: Use 'ultrafast' preset (uses less memory than 'medium')
+            # Reduce threads to 1 and FPS to 15 for minimal memory usage
             final_clip.write_videofile(
                 video_path, 
-                fps=24, 
+                fps=15,  # Reduced from 24 to 15 for lower memory (fewer frames to process)
                 codec='libx264', 
                 audio=False,
-                preset='medium',
-                threads=4
+                preset='ultrafast',  # Changed from 'medium' to 'ultrafast' for lower memory
+                threads=1,  # Reduced to 1 thread to minimize memory usage
+                bitrate='300k',  # Lower bitrate = smaller file = less memory during encoding
+                temp_audiofile=None,  # No audio file needed
+                remove_temp=True  # Remove temporary files immediately
             )
+            
+            # Calculate duration BEFORE deleting clips
+            duration_ms = len(clips) * int(frame_duration * 1000)
+            
+            # Memory optimization: Close final clip immediately
             final_clip.close()
+            del final_clip
             
             # Clean up individual clips
             for clip in clips:
                 clip.close()
+            del clips
             
-            # Calculate duration
-            duration_ms = len(clips) * int(frame_duration * 1000)
+            # Force garbage collection after video generation
+            import gc
+            gc.collect()
             
         except ImportError as e:
             raise HTTPException(
