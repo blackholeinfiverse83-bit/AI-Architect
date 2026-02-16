@@ -152,11 +152,23 @@ class Settings(BaseSettings):
     )
     YOTTA_MODEL: str = Field(default="llama-2-7b", description="Yotta model name")
 
+    # Groq (Fast & Free LLM)
+    GROQ_API_KEY: Optional[str] = Field(default=None, description="Groq API key for fast LLM inference")
+
     # OpenAI
     OPENAI_API_KEY: Optional[str] = Field(default=None, description="OpenAI API key")
 
     # Anthropic Claude
     ANTHROPIC_API_KEY: Optional[str] = Field(default=None, description="Anthropic Claude API key")
+
+    # Tripo AI (3D Generation)
+    TRIPO_API_KEY: Optional[str] = Field(default=None, description="Tripo AI API key for 3D model generation")
+
+    # Meshy AI (3D Generation)
+    MESHY_API_KEY: Optional[str] = Field(default=None, description="Meshy AI API key for 3D model generation")
+
+    # Hugging Face (3D Generation)
+    HUGGINGFACE_API_KEY: Optional[str] = Field(default=None, description="Hugging Face API token for 3D generation")
 
     # Raptor (Preview) - lightweight inference option
     RAPTOR_MINI_ENABLED: bool = Field(default=False, description="Enable Raptor mini (Preview) model")

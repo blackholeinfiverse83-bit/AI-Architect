@@ -284,19 +284,80 @@ async def generate_design(request: GenerateRequest):
 
         spec_id = f"spec_{uuid.uuid4().hex[:12]}"
 
-        # 5. GENERATE PREVIEW FILE AND URL FIRST
+        # 5. GENERATE PREVIEW FILE WITH 3D GENERATORS (with timeout handling)
         try:
             from app.storage import upload_geometry
+            import asyncio
 
-            # Generate simple GLB file content (mock 3D data)
-            glb_content = generate_mock_glb(spec_json)
+            glb_content = None
+
+            # Try Meshy AI first (realistic 3D) - PRIORITY: Use Meshy for all 3D generation
+            if settings.MESHY_API_KEY:
+                try:
+                    from app.meshy_3d_generator import generate_3d_with_meshy
+
+                    logger.info("🎨 Using Meshy AI for 3D generation (realistic 3D)...")
+                    # Increased timeout to 10 minutes to allow Meshy to complete
+                    # Meshy can take 3-8 minutes for complex models, sometimes shows 99% before completing
+                    # Now checks for model_urls even when status is IN_PROGRESS at 99%
+                    try:
+                        glb_content = await asyncio.wait_for(
+                            generate_3d_with_meshy(request.prompt, spec_json["dimensions"]),
+                            timeout=600.0  # 10 minutes - enough time for Meshy to complete even if stuck at 99%
+                        )
+                        if glb_content:
+                            logger.info(f"✅ Meshy AI successfully generated {len(glb_content)} bytes")
+                        else:
+                            logger.warning("⚠️ Meshy AI returned None, trying fallback...")
+                    except asyncio.TimeoutError:
+                        logger.warning("⚠️ Meshy AI timed out after 10 minutes, trying fallback...")
+                except Exception as meshy_error:
+                    logger.error(f"❌ Meshy AI error: {meshy_error}, trying fallback...")
+
+            # Fallback to Tripo AI
+            if not glb_content and settings.TRIPO_API_KEY:
+                try:
+                    from app.tripo_3d_generator import generate_3d_with_tripo
+
+                    logger.info("🎨 Trying Tripo AI (fallback)...")
+                    try:
+                        glb_content = await asyncio.wait_for(
+                            generate_3d_with_tripo(
+                                request.prompt, spec_json["dimensions"], settings.TRIPO_API_KEY
+                            ),
+                            timeout=120.0
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning("⚠️ Tripo AI timed out, using fallback...")
+                except Exception as tripo_error:
+                    logger.warning(f"Tripo AI failed: {tripo_error}")
+
+            # Try HuggingFace as another fallback (free, unlimited)
+            if not glb_content and settings.HUGGINGFACE_API_KEY:
+                try:
+                    from app.huggingface_3d_generator import generate_3d_with_huggingface
+
+                    logger.info("🎨 Trying HuggingFace (free fallback)...")
+                    glb_content = await generate_3d_with_huggingface(
+                        request.prompt, spec_json["dimensions"], settings.HUGGINGFACE_API_KEY
+                    )
+                    if glb_content:
+                        logger.info(f"✅ HuggingFace generated {len(glb_content)} bytes")
+                except Exception as hf_error:
+                    logger.warning(f"HuggingFace failed: {hf_error}")
+
+            # Final fallback to local GLB generator (ONLY if all AI 3D generators failed)
+            if not glb_content:
+                logger.warning("⚠️ All AI 3D generators (Meshy/Tripo/HuggingFace) failed")
+                logger.info("🎨 Using local geometry generator as last resort")
+                glb_content = generate_mock_glb(spec_json)
 
             # Upload to Supabase storage
             preview_url = upload_geometry(spec_id, glb_content)
-            print(f"✅ Generated real preview file: {preview_url}")
+            logger.info(f"✅ Preview uploaded: {preview_url}")
 
         except Exception as e:
-            print(f"⚠️ Preview generation failed, using local path: {e}")
+            logger.warning(f"Preview generation failed, using local path: {e}")
             # Fallback to local file path
             local_preview_path = f"data/geometry_outputs/{spec_id}.glb"
             create_local_preview_file(spec_json, local_preview_path)

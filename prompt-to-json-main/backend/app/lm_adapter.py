@@ -11,6 +11,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # AI Model Configuration
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", getattr(settings, "GROQ_API_KEY", None))
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", settings.OPENAI_API_KEY if hasattr(settings, "OPENAI_API_KEY") else None)
 ANTHROPIC_API_KEY = os.getenv(
     "ANTHROPIC_API_KEY", settings.ANTHROPIC_API_KEY if hasattr(settings, "ANTHROPIC_API_KEY") else None
@@ -19,25 +20,43 @@ USE_AI_MODEL = os.getenv("USE_AI_MODEL", "true").lower() == "true"
 
 
 async def run_local_lm(prompt: str, params: dict) -> dict:
-    """Run inference using AI models (OpenAI/Anthropic) or fallback to templates"""
+    """Run inference using AI models (Groq/OpenAI/Anthropic) or fallback to templates"""
     logger.info(f"AI_LM: Processing prompt: '{prompt[:100]}...'")
 
-    # Try AI generation first
-    if USE_AI_MODEL and (OPENAI_API_KEY or ANTHROPIC_API_KEY):
+    # Try multi-model AI first (Groq prioritized, then OpenAI, then Anthropic)
+    if USE_AI_MODEL and (GROQ_API_KEY or OPENAI_API_KEY or ANTHROPIC_API_KEY):
         try:
-            spec_json = await generate_with_ai(prompt, params)
+            # Try multi-model AI adapter (prioritizes Groq)
+            from app.multi_model_ai import generate_with_multi_model_ai
+            spec_json = await generate_with_multi_model_ai(prompt, params)
             logger.info(f"✅ AI generated design: {spec_json.get('design_type')}")
 
+            model_used = spec_json.get("model_used", "unknown")
             log_usage("ai_model", len(prompt), 0.002, params.get("user_id"))
 
             return {
                 "spec_json": spec_json,
                 "preview_data": f"AI generated {spec_json.get('design_type', 'design')} for: {prompt[:50]}...",
-                "provider": "openai" if OPENAI_API_KEY else "anthropic",
-                "feedback": f"AI model generated {spec_json.get('design_type', 'design')} with intelligent analysis",
+                "provider": model_used,
+                "feedback": f"AI model ({model_used}) generated {spec_json.get('design_type', 'design')} with intelligent analysis",
             }
         except Exception as e:
-            logger.warning(f"AI generation failed: {e}, falling back to templates")
+            logger.warning(f"Multi-model AI generation failed: {e}, trying single-model AI...")
+            # Fallback to single-model AI
+            try:
+                spec_json = await generate_with_ai(prompt, params)
+                logger.info(f"✅ AI generated design: {spec_json.get('design_type')}")
+
+                log_usage("ai_model", len(prompt), 0.002, params.get("user_id"))
+
+                return {
+                    "spec_json": spec_json,
+                    "preview_data": f"AI generated {spec_json.get('design_type', 'design')} for: {prompt[:50]}...",
+                    "provider": "openai" if OPENAI_API_KEY else "anthropic",
+                    "feedback": f"AI model generated {spec_json.get('design_type', 'design')} with intelligent analysis",
+                }
+            except Exception as e2:
+                logger.warning(f"Single-model AI generation also failed: {e2}, falling back to templates")
 
     # Fallback to template-based generation
     spec_json = generate_design_from_prompt(prompt, params)
