@@ -61,29 +61,8 @@
                     <button class="nav-item active" data-tab="dashboard">
                         <span>🏠</span> Dashboard
                     </button>
-                    <button class="nav-item" data-tab="generate">
-                        <span>✨</span> Generate
-                    </button>
-                    <button class="nav-item" data-tab="switch">
-                        <span>🔄</span> Switch
-                    </button>
-                    <button class="nav-item" data-tab="iterate">
-                        <span>📈</span> Iterate
-                    </button>
-                    <button class="nav-item" data-tab="evaluate">
-                        <span>⭐</span> Evaluate
-                    </button>
-                    <button class="nav-item" data-tab="history">
-                        <span>📜</span> History
-                    </button>
                     <button class="nav-item" data-tab="geometry">
                         <span>📐</span> Geometry
-                    </button>
-                    <button class="nav-item" data-tab="reports">
-                        <span>📊</span> Reports
-                    </button>
-                    <button class="nav-item" data-tab="rl">
-                        <span>🤖</span> RL Training
                     </button>
                     <button class="nav-item" data-tab="videogen">
                         <span>🎞️</span> Video Lab
@@ -173,243 +152,53 @@
                     </div>
                 </div>
 
-                <!-- Generate Tab -->
-                <div id="tab-generate" class="tab-content">
-                    <div class="card">
-                        <h3>✨ Generate New Design</h3>
-                        <div class="form-group">
-                            <label>Design Description</label>
-                            <textarea id="gen-prompt" rows="4"
-                                placeholder="A modern kitchen with marble island and copper fixtures..."></textarea>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>City</label>
-                                <select id="gen-city">
-                                    <option value="Mumbai">Mumbai</option>
-                                    <option value="Pune">Pune</option>
-                                    <option value="Ahmedabad">Ahmedabad</option>
-                                    <option value="Nashik">Nashik</option>
-                                    <option value="Bangalore">Bangalore</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Style</label>
-                                <select id="gen-style">
-                                    <option value="modern">Modern</option>
-                                    <option value="traditional">Traditional</option>
-                                    <option value="contemporary">Contemporary</option>
-                                    <option value="rustic">Rustic</option>
-                                    <option value="industrial">Industrial</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Budget (INR)</label>
-                                <input type="number" id="gen-budget" value="0" min="0" step="100000">
-                            </div>
-                        </div>
-
-                        <button id="generate-btn" class="btn btn-primary">Generate Design</button>
-
-                        <div id="gen-result" class="result-container hidden"></div>
-                    </div>
-                </div>
-
-                <!-- Switch Tab -->
-                <div id="tab-switch" class="tab-content">
-                    <div class="card">
-                        <h3>🔄 Switch Materials</h3>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Spec ID</label>
-                                <input type="text" id="switch-spec-id" placeholder="Enter spec ID">
-                            </div>
-                            <div class="form-group">
-                                <label>Change Request</label>
-                                <input type="text" id="switch-query" placeholder="e.g., change wall to marble">
-                            </div>
-                        </div>
-                        <button id="switch-btn" class="btn btn-primary">Apply Switch</button>
-                        <div id="switch-result" class="result-container hidden"></div>
-                    </div>
-                </div>
-
-                <!-- Iterate Tab -->
-                <div id="tab-iterate" class="tab-content">
-                    <div class="card">
-                        <h3>📈 Iterate Design</h3>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Spec ID</label>
-                                <input type="text" id="iterate-spec-id" placeholder="Enter spec ID">
-                            </div>
-                            <div class="form-group">
-                                <label>Strategy</label>
-                                <select id="iterate-strategy">
-                                    <option value="auto_optimize">Auto Optimize</option>
-                                    <option value="improve_materials">Improve Materials</option>
-                                    <option value="improve_layout">Improve Layout</option>
-                                    <option value="improve_colors">Improve Colors</option>
-                                </select>
-                            </div>
-                        </div>
-                        <button id="iterate-btn" class="btn btn-primary">Iterate</button>
-                        <div id="iterate-result" class="result-container hidden"></div>
-                    </div>
-                </div>
-
-                <!-- Evaluate Tab -->
-                <div id="tab-evaluate" class="tab-content">
-                    <div class="card">
-                        <h3>⭐ Evaluate Design</h3>
-                        <div class="form-group">
-                            <label>Spec ID</label>
-                            <input type="text" id="eval-spec-id" placeholder="Enter spec ID">
-                        </div>
-                        <div class="form-group">
-                            <label>Rating: <span id="rating-display">⭐⭐⭐</span></label>
-                            <input type="range" id="eval-rating" min="1" max="5" value="3">
-                        </div>
-                        <div class="form-group">
-                            <label>Notes</label>
-                            <textarea id="eval-notes" rows="2"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Feedback</label>
-                            <textarea id="eval-feedback" rows="2"></textarea>
-                        </div>
-                        <button id="eval-btn" class="btn btn-primary">Submit Evaluation</button>
-                        <div id="eval-result" class="result-container hidden"></div>
-                    </div>
-                </div>
-
-                <!-- History Tab -->
-                <div id="tab-history" class="tab-content">
-                    <div class="card">
-                        <h3>📜 Design History</h3>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>History Limit</label>
-                                <input type="number" id="hist-limit" value="20" min="1" max="100">
-                            </div>
-                            <div class="form-group" style="display: flex; align-items: flex-end;">
-                                <button id="load-history-btn" class="btn btn-primary">Load History</button>
-                            </div>
-                        </div>
-                        <div id="history-result" class="result-container hidden"></div>
-
-                        <hr>
-
-                        <h4>Spec History</h4>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Spec ID</label>
-                                <input type="text" id="hist-spec-id" placeholder="Enter spec ID">
-                            </div>
-                            <div class="form-group" style="display: flex; align-items: flex-end;">
-                                <button id="load-spec-history-btn" class="btn btn-primary">Load Spec History</button>
-                            </div>
-                        </div>
-                        <div id="spec-history-result" class="result-container hidden"></div>
-                    </div>
-                </div>
 
                 <!-- Geometry Tab -->
                 <div id="tab-geometry" class="tab-content">
                     <div class="card">
-                        <h3>📐 Geometry Generation</h3>
-                        <button id="list-geometry-btn" class="btn btn-secondary">List Geometry Files</button>
-                        <div id="geometry-list-result" class="result-container hidden"></div>
-
-                        <hr>
-
-                        <h4>Generate New Geometry</h4>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Request ID</label>
-                                <input type="text" id="geom-request-id" placeholder="Auto-generated">
-                            </div>
-                            <div class="form-group">
-                                <label>Format</label>
-                                <select id="geom-format">
-                                    <option value="glb">GLB</option>
-                                    <option value="obj">OBJ</option>
-                                    <option value="fbx">FBX</option>
-                                </select>
+                        <h3>📐 3D Model Preview</h3>
+                        
+                        <!-- File Upload Section -->
+                        <div class="geometry-upload-section">
+                            <div id="geometry-drop-zone" class="geometry-drop-zone">
+                                <div class="drop-zone-content">
+                                    <div class="drop-zone-icon">📁</div>
+                                    <p class="drop-zone-text">Drag & drop GLB file here</p>
+                                    <p class="drop-zone-subtext">or</p>
+                                    <label for="geometry-file-input" class="btn btn-secondary">Browse Files</label>
+                                    <input type="file" id="geometry-file-input" accept=".glb,.gltf" style="display: none;">
+                                </div>
                             </div>
                         </div>
-                        <button id="generate-geometry-btn" class="btn btn-primary">Generate Geometry</button>
-                        <div id="geometry-result" class="result-container hidden"></div>
-                    </div>
-                </div>
 
-                <!-- Reports Tab -->
-                <div id="tab-reports" class="tab-content">
-                    <div class="card">
-                        <h3>📊 Reports</h3>
-                        <div class="form-group">
-                            <label>Spec ID</label>
-                            <input type="text" id="report-spec-id" placeholder="Enter spec ID">
-                        </div>
-                        <button id="generate-report-btn" class="btn btn-primary">Generate Report</button>
-                        <div id="report-result" class="result-container hidden"></div>
-                    </div>
-                </div>
-
-                <!-- RL Training Tab -->
-                <div id="tab-rl" class="tab-content">
-                    <div class="card">
-                        <h3>🤖 RL Training</h3>
-
-                        <h4>Submit Feedback</h4>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Spec ID</label>
-                                <input type="text" id="rl-spec-id" placeholder="Enter spec ID">
+                        <!-- 3D Preview Section -->
+                        <div id="geometry-preview-section" class="geometry-preview-section">
+                            <div id="geometry-preview-container" class="geometry-preview-container">
+                                <model-viewer 
+                                    id="geometry-viewer"
+                                    src="" 
+                                    alt="3D Model Preview"
+                                    auto-rotate 
+                                    camera-controls 
+                                    interaction-policy="allow-when-focused"
+                                    style="width: 100%; height: 600px; background-color: #1a1f26; border-radius: 8px; display: none;">
+                                </model-viewer>
                             </div>
-                            <div class="form-group">
-                                <label>Preference</label>
-                                <select id="rl-preference">
-                                    <option value="1">Design A</option>
-                                    <option value="-1">Design B</option>
-                                    <option value="0">Equal</option>
-                                </select>
+                            <div id="geometry-preview-info" class="geometry-preview-info" style="display: none;"></div>
+                            <div id="geometry-no-preview" class="geometry-no-preview">
+                                <p style="text-align: center; color: var(--text-secondary); padding: 40px;">
+                                    No 3D model preview available yet.<br>
+                                    Upload a GLB file or generate a design from the Dashboard.
+                                </p>
                             </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Design A ID</label>
-                                <input type="text" id="rl-design-a" placeholder="Enter design A ID">
-                            </div>
-                            <div class="form-group">
-                                <label>Design B ID</label>
-                                <input type="text" id="rl-design-b" placeholder="Enter design B ID">
-                            </div>
-                        </div>
-                        <button id="submit-feedback-btn" class="btn btn-primary">Submit Feedback</button>
-                        <div id="feedback-result" class="result-container hidden"></div>
-
-                        <hr>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <h4>RLHF Training</h4>
-                                <label>Samples</label>
-                                <input type="number" id="rlhf-samples" value="100" min="10" max="1000" step="10">
-                                <button id="train-rlhf-btn" class="btn btn-primary mt-2">Train RLHF</button>
-                                <div id="rlhf-result" class="result-container hidden"></div>
-                            </div>
-                            <div class="form-group">
-                                <h4>PPO Training</h4>
-                                <label>Iterations</label>
-                                <input type="number" id="ppo-iterations" value="50" min="10" max="500" step="10">
-                                <button id="train-ppo-btn" class="btn btn-primary mt-2">Train PPO</button>
-                                <div id="ppo-result" class="result-container hidden"></div>
+                            <div class="geometry-actions">
+                                <button id="load-preview-btn" class="btn btn-primary mt-2">Load Last Generated Design</button>
+                                <button id="clear-preview-btn" class="btn btn-secondary mt-2" style="display: none;">Clear Preview</button>
                             </div>
                         </div>
                     </div>
                 </div>
+
 
                 <!-- Video Lab Tab -->
                 <div id="tab-videogen" class="tab-content">
@@ -461,6 +250,8 @@
         </div>
     </div>
 
+    <!-- Model Viewer for GLB preview -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
     <script src="app.js"></script>
 </body>
 

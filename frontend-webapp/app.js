@@ -20,7 +20,8 @@ const state = {
     recentDesigns: [],
     apiConnected: false,
     videoApiConnected: false,
-    videos: []
+    videos: [],
+    uploadedGLBFile: null  // Store uploaded GLB file info
 };
 
 // Utility Functions
@@ -367,6 +368,9 @@ async function handleQuickGenerate() {
             displayDesignResult('quick-result', data);
             updateDashboard();
             updateInputValues();
+            
+            // Store preview URL for Geometry tab (will auto-load when tab is opened)
+            // Preview will be shown automatically when user switches to Geometry tab
         } else {
             showResult('quick-result', data, true);
         }
@@ -378,337 +382,196 @@ async function handleQuickGenerate() {
     }
 }
 
-async function handleGenerate() {
-    const btn = document.getElementById('generate-btn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Generating...';
-    btn.disabled = true;
+// Removed handlers for Generate, Switch, Iterate, Evaluate, and History tabs
+// Removed handleListGeometry and handleGenerateGeometry - Geometry tab is now preview-only
 
-    try {
-        const payload = {
-            user_id: state.user || 'user',
-            prompt: document.getElementById('gen-prompt').value,
-            city: document.getElementById('gen-city').value,
-            style: document.getElementById('gen-style').value,
-            context: {}
-        };
+function displayGeometryPreview(glbUrl, title = '3D Model', isFile = false) {
+    const previewSection = document.getElementById('geometry-preview-section');
+    const viewer = document.getElementById('geometry-viewer');
+    const previewInfo = document.getElementById('geometry-preview-info');
+    const noPreview = document.getElementById('geometry-no-preview');
+    const clearBtn = document.getElementById('clear-preview-btn');
+    const dropZone = document.getElementById('geometry-drop-zone');
+    
+    if (!viewer || !previewSection) return;
+    
+    if (!glbUrl) {
+        // Hide preview, show no preview message
+        if (viewer) viewer.style.display = 'none';
+        if (previewInfo) previewInfo.style.display = 'none';
+        if (noPreview) noPreview.style.display = 'block';
+        if (clearBtn) clearBtn.style.display = 'none';
+        if (dropZone) dropZone.style.display = 'flex';
+        return;
+    }
+    
+    // Hide no preview message and drop zone, show preview
+    if (noPreview) noPreview.style.display = 'none';
+    if (dropZone) dropZone.style.display = 'none';
+    if (viewer) viewer.style.display = 'block';
+    if (previewInfo) previewInfo.style.display = 'block';
+    if (clearBtn) clearBtn.style.display = 'inline-block';
+    
+    // Load GLB file (works with both URLs and object URLs)
+    viewer.src = glbUrl;
+    viewer.alt = title;
+    
+    // Update info
+    if (previewInfo) {
+        const sourceType = isFile ? 'Uploaded File' : 'Generated Design';
+        previewInfo.innerHTML = `
+            <div class="info-item">
+                <div class="info-label">Source</div>
+                <div class="info-value">${sourceType}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Model</div>
+                <div class="info-value">${title}</div>
+            </div>
+            ${!isFile ? `
+            <div class="info-item">
+                <div class="info-label">Preview URL</div>
+                <div class="info-value"><a href="${glbUrl}" target="_blank">${glbUrl.length > 60 ? glbUrl.substring(0, 60) + '...' : glbUrl}</a></div>
+            </div>
+            ` : ''}
+        `;
+    }
+}
 
-        const budget = parseInt(document.getElementById('gen-budget').value);
-        if (budget > 0) {
-            payload.context.budget = budget;
+function handleGLBFileUpload(file) {
+    if (!file) {
+        console.error('No file provided');
+        return;
+    }
+    
+    console.log('Handling file upload:', file.name, file.type);
+    
+    // Check file type
+    if (!file.name.toLowerCase().endsWith('.glb') && !file.name.toLowerCase().endsWith('.gltf')) {
+        alert('Please upload a GLB or GLTF file');
+        return;
+    }
+    
+    // Create object URL for the file
+    const objectUrl = URL.createObjectURL(file);
+    console.log('Created object URL:', objectUrl);
+    
+    // Display preview
+    displayGeometryPreview(objectUrl, file.name, true);
+    
+    // Store file info in state
+    state.uploadedGLBFile = {
+        name: file.name,
+        url: objectUrl,
+        file: file
+    };
+    
+    console.log('File uploaded successfully');
+}
+
+function clearPreview() {
+    // Revoke object URL if it was an uploaded file
+    if (state.uploadedGLBFile && state.uploadedGLBFile.url) {
+        URL.revokeObjectURL(state.uploadedGLBFile.url);
+        state.uploadedGLBFile = null;
+    }
+    
+    // Clear preview
+    displayGeometryPreview(null, null);
+}
+
+function loadPreviewFromLastDesign() {
+    if (state.lastPreviewUrl && state.lastPreviewUrl.endsWith('.glb')) {
+        // Clear any uploaded file first
+        if (state.uploadedGLBFile) {
+            URL.revokeObjectURL(state.uploadedGLBFile.url);
+            state.uploadedGLBFile = null;
         }
-
-        const response = await apiPost('/api/v1/generate', payload);
-        const data = await response.json();
-
-        if (response.ok) {
-            state.lastSpecId = data.spec_id;
-            state.lastSpecJson = data.spec_json;
-            state.lastPreviewUrl = data.preview_url;
-            state.lastCost = data.estimated_cost || 0;
-
-            state.recentDesigns.push({
-                spec_id: data.spec_id,
-                prompt: payload.prompt,
-                city: payload.city
-            });
-
-            displayDesignResult('gen-result', data);
-            updateDashboard();
-            updateInputValues();
-        } else {
-            showResult('gen-result', data, true);
+        displayGeometryPreview(state.lastPreviewUrl, state.lastSpecId || 'Last Generated Design', false);
+    } else {
+        displayGeometryPreview(null, null);
+        // Show message
+        const noPreview = document.getElementById('geometry-no-preview');
+        if (noPreview) {
+            noPreview.innerHTML = `
+                <p style="text-align: center; color: var(--text-secondary); padding: 40px;">
+                    No 3D model preview available.<br>
+                    Upload a GLB file or generate a design from the Dashboard.
+                </p>
+            `;
         }
-    } catch (error) {
-        showResult('gen-result', error.message, true);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
     }
 }
 
-async function handleSwitch() {
-    const btn = document.getElementById('switch-btn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Applying...';
-    btn.disabled = true;
-
-    try {
-        const payload = {
-            spec_id: document.getElementById('switch-spec-id').value,
-            query: document.getElementById('switch-query').value
-        };
-
-        if (!payload.spec_id || !payload.query) {
-            showResult('switch-result', 'Spec ID and query are required', true);
-            return;
+// Geometry file upload setup
+function setupGeometryFileUpload() {
+    const dropZone = document.getElementById('geometry-drop-zone');
+    const fileInput = document.getElementById('geometry-file-input');
+    
+    console.log('Setting up geometry file upload...');
+    console.log('Drop zone:', dropZone);
+    console.log('File input:', fileInput);
+    
+    if (!dropZone || !fileInput) {
+        console.error('Geometry upload elements not found');
+        console.error('Drop zone:', dropZone);
+        console.error('File input:', fileInput);
+        return;
+    }
+    
+    console.log('Geometry upload elements found, attaching handlers...');
+    
+    // File input change handler
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            handleGLBFileUpload(file);
         }
-
-        const response = await apiPost('/api/v1/switch', payload);
-        const data = await response.json();
-
-        showResult('switch-result', data, !response.ok);
-    } catch (error) {
-        showResult('switch-result', error.message, true);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function handleIterate() {
-    const btn = document.getElementById('iterate-btn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Iterating...';
-    btn.disabled = true;
-
-    try {
-        const payload = {
-            user_id: state.user || 'user',
-            spec_id: document.getElementById('iterate-spec-id').value,
-            strategy: document.getElementById('iterate-strategy').value
-        };
-
-        if (!payload.spec_id) {
-            showResult('iterate-result', 'Spec ID is required', true);
-            return;
+    });
+    
+    // Drag and drop handlers
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('drag-over');
+    });
+    
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('drag-over');
+    });
+    
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('drag-over');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleGLBFileUpload(files[0]);
         }
-
-        const response = await apiPost('/api/v1/iterate', payload);
-        const data = await response.json();
-
-        showResult('iterate-result', data, !response.ok);
-    } catch (error) {
-        showResult('iterate-result', error.message, true);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function handleEvaluate() {
-    const btn = document.getElementById('eval-btn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Submitting...';
-    btn.disabled = true;
-
-    try {
-        const payload = {
-            user_id: state.user || 'user',
-            spec_id: document.getElementById('eval-spec-id').value,
-            rating: parseInt(document.getElementById('eval-rating').value),
-            notes: document.getElementById('eval-notes').value,
-            feedback_text: document.getElementById('eval-feedback').value
-        };
-
-        if (!payload.spec_id) {
-            showResult('eval-result', 'Spec ID is required', true);
-            return;
+    });
+    
+    // Click to browse (but don't trigger on label click)
+    dropZone.addEventListener('click', (e) => {
+        // Don't trigger if clicking on the label button
+        if (e.target.tagName !== 'LABEL' && e.target.closest('label') === null) {
+            fileInput.click();
         }
-
-        const response = await apiPost('/api/v1/evaluate', payload);
-        const data = await response.json();
-
-        showResult('eval-result', data, !response.ok);
-    } catch (error) {
-        showResult('eval-result', error.message, true);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
+    });
+    
+    // Prevent default drag behaviors on window
+    window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+    });
+    
+    window.addEventListener('drop', (e) => {
+        e.preventDefault();
+    });
 }
 
-// Compliance function removed
-
-async function handleLoadHistory() {
-    const btn = document.getElementById('load-history-btn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Loading...';
-    btn.disabled = true;
-
-    try {
-        const limit = document.getElementById('hist-limit').value;
-        const response = await apiGet('/api/v1/history', { limit });
-        const data = await response.json();
-
-        showResult('history-result', data, !response.ok);
-    } catch (error) {
-        showResult('history-result', error.message, true);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function handleLoadSpecHistory() {
-    const btn = document.getElementById('load-spec-history-btn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Loading...';
-    btn.disabled = true;
-
-    try {
-        const specId = document.getElementById('hist-spec-id').value;
-        if (!specId) {
-            showResult('spec-history-result', 'Spec ID is required', true);
-            return;
-        }
-
-        const response = await apiGet(`/api/v1/history/${specId}`, { limit: 50 });
-        const data = await response.json();
-
-        showResult('spec-history-result', data, !response.ok);
-    } catch (error) {
-        showResult('spec-history-result', error.message, true);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function handleListGeometry() {
-    const btn = document.getElementById('list-geometry-btn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Loading...';
-    btn.disabled = true;
-
-    try {
-        const response = await apiGet('/api/v1/geometry/list');
-        const data = await response.json();
-
-        showResult('geometry-list-result', data, !response.ok);
-    } catch (error) {
-        showResult('geometry-list-result', error.message, true);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function handleGenerateGeometry() {
-    const btn = document.getElementById('generate-geometry-btn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Generating...';
-    btn.disabled = true;
-
-    try {
-        if (!state.lastSpecJson) {
-            showResult('geometry-result', 'Generate a design first to create geometry', true);
-            return;
-        }
-
-        const payload = {
-            spec_json: state.lastSpecJson,
-            request_id: document.getElementById('geom-request-id').value || `req_${generateUUID().substring(0, 6)}`,
-            format: document.getElementById('geom-format').value
-        };
-
-        const response = await apiPost('/api/v1/geometry/generate', payload);
-        const data = await response.json();
-
-        showResult('geometry-result', data, !response.ok);
-    } catch (error) {
-        showResult('geometry-result', error.message, true);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function handleGenerateReport() {
-    const btn = document.getElementById('generate-report-btn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Generating...';
-    btn.disabled = true;
-
-    try {
-        const specId = document.getElementById('report-spec-id').value;
-        if (!specId) {
-            showResult('report-result', 'Spec ID is required', true);
-            return;
-        }
-
-        const response = await apiGet(`/api/v1/reports/${specId}`);
-        const data = await response.json();
-
-        showResult('report-result', data, !response.ok);
-    } catch (error) {
-        showResult('report-result', error.message, true);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function handleSubmitFeedback() {
-    const btn = document.getElementById('submit-feedback-btn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Submitting...';
-    btn.disabled = true;
-
-    try {
-        const payload = {
-            design_a_id: document.getElementById('rl-design-a').value,
-            design_b_id: document.getElementById('rl-design-b').value,
-            preference: parseInt(document.getElementById('rl-preference').value)
-        };
-
-        const response = await apiPost('/api/v1/rl/feedback', payload);
-        const data = await response.json();
-
-        showResult('feedback-result', data, !response.ok);
-    } catch (error) {
-        showResult('feedback-result', error.message, true);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function handleTrainRLHF() {
-    const btn = document.getElementById('train-rlhf-btn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Training...';
-    btn.disabled = true;
-
-    try {
-        const payload = {
-            num_samples: parseInt(document.getElementById('rlhf-samples').value)
-        };
-
-        const response = await apiPost('/api/v1/rl/train/rlhf', payload);
-        const data = await response.json();
-
-        showResult('rlhf-result', data, !response.ok);
-    } catch (error) {
-        showResult('rlhf-result', error.message, true);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function handleTrainPPO() {
-    const btn = document.getElementById('train-ppo-btn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Training...';
-    btn.disabled = true;
-
-    try {
-        const payload = {
-            num_iterations: parseInt(document.getElementById('ppo-iterations').value)
-        };
-
-        const response = await apiPost('/api/v1/rl/train/opt', payload);
-        const data = await response.json();
-
-        showResult('ppo-result', data, !response.ok);
-    } catch (error) {
-        showResult('ppo-result', error.message, true);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
+// Removed handlers for Reports and RL Training tabs
 
 async function handleGenerateVideo() {
     const btn = document.getElementById('generate-video-btn');
@@ -904,6 +767,13 @@ function setupTabs() {
             if (tabId === 'videogen') {
                 handleRefreshVideoList();
             }
+            
+            // Auto-load preview when Geometry tab is opened
+            if (tabId === 'geometry') {
+                setTimeout(() => {
+                    loadPreviewFromLastDesign();
+                }, 300);
+            }
         });
     });
 }
@@ -964,32 +834,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Setup all button handlers
+    // Setup all button handlers (only Dashboard, Geometry, and Video Lab)
     document.getElementById('quick-generate-btn').addEventListener('click', handleQuickGenerate);
-    document.getElementById('generate-btn').addEventListener('click', handleGenerate);
-    document.getElementById('switch-btn').addEventListener('click', handleSwitch);
-    document.getElementById('iterate-btn').addEventListener('click', handleIterate);
-    document.getElementById('eval-btn').addEventListener('click', handleEvaluate);
-    document.getElementById('load-history-btn').addEventListener('click', handleLoadHistory);
-    document.getElementById('load-spec-history-btn').addEventListener('click', handleLoadSpecHistory);
-    document.getElementById('list-geometry-btn').addEventListener('click', handleListGeometry);
-    document.getElementById('generate-geometry-btn').addEventListener('click', handleGenerateGeometry);
-    document.getElementById('generate-report-btn').addEventListener('click', handleGenerateReport);
-    document.getElementById('submit-feedback-btn').addEventListener('click', handleSubmitFeedback);
-    document.getElementById('train-rlhf-btn').addEventListener('click', handleTrainRLHF);
-    document.getElementById('train-ppo-btn').addEventListener('click', handleTrainPPO);
+    document.getElementById('load-preview-btn').addEventListener('click', loadPreviewFromLastDesign);
+    document.getElementById('clear-preview-btn').addEventListener('click', clearPreview);
+    
+    // Setup Geometry file upload handlers (with delay to ensure DOM is ready)
+    setTimeout(() => {
+        setupGeometryFileUpload();
+    }, 500);
 
     // Video Lab handlers
     document.getElementById('generate-video-btn').addEventListener('click', handleGenerateVideo);
     document.getElementById('refresh-video-list-btn').addEventListener('click', handleRefreshVideoList);
-
-    // Rating slider display
-    const ratingSlider = document.getElementById('eval-rating');
-    const ratingDisplay = document.getElementById('rating-display');
-    if (ratingSlider && ratingDisplay) {
-        ratingSlider.addEventListener('input', (e) => {
-            const stars = '⭐'.repeat(parseInt(e.target.value));
-            ratingDisplay.textContent = stars;
-        });
-    }
 });
