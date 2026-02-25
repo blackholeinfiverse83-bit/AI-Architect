@@ -4,6 +4,7 @@ sqlalchemy
 alembic
 pydantic
 python-jose[cryptography]
+pyjwt
 httpx
 python-multipart
 python-dotenv
