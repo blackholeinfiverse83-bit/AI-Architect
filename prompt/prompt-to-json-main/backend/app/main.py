@@ -100,59 +100,39 @@ app = FastAPI(
 )
 
 
-# Startup event to ensure logging is working
+# Startup event: run minimal checks then bind; DB init in background so Render sees port open
 @app.on_event("startup")
 async def startup_event():
     print("\n" + "=" * 70)
     print("Design Engine API Server Starting...")
-    
-    # Render Diagnostics
-    print("\n--- Dependency Diagnostics ---")
-    try:
-        import jose
-        print(f"jose module: Found (version: {getattr(jose, '__version__', 'unknown')})")
-    except ImportError:
-        print("jose module: NOT FOUND")
-    
-    try:
-        import jwt as pyjwt
-        print("pyjwt module: Found (should be removed if jose is used)")
-    except ImportError:
-        print("pyjwt module: Not found (expected)")
-
-    print("\n--- Environment Diagnostics ---")
     port = os.getenv("PORT", "8000")
     print(f"PORT: {port}")
     print(f"ENVIRONMENT: {settings.ENVIRONMENT}")
-    print(f"IS_DEMO_MODE: {IS_DEMO_MODE}")
-    
     print("\n" + "=" * 70 + "\n")
     logger.info("Design Engine API Server Started Successfully")
 
-    # Initialize database tables (create each table individually to isolate errors)
-    try:
-        from app.models import Base as ModelsBase
-        from app.database import engine, Base as DbBase
+    # Run DB table init in background so server can bind to PORT immediately (avoids Render deploy timeout)
+    import asyncio
+    def _init_db():
+        try:
+            from app.models import Base as ModelsBase
+            from app.database import engine, Base as DbBase
+            from app.api import auth as _auth_module  # noqa: F401
+            for table in ModelsBase.metadata.sorted_tables:
+                try:
+                    table.create(bind=engine, checkfirst=True)
+                except Exception as table_err:
+                    logger.warning(f"Table '{table.name}' init warning: {table_err}")
+            for table in DbBase.metadata.sorted_tables:
+                try:
+                    table.create(bind=engine, checkfirst=True)
+                except Exception as table_err:
+                    logger.warning(f"Table '{table.name}' (auth) init warning: {table_err}")
+            logger.info("✅ Database tables initialized successfully")
+        except Exception as e:
+            logger.warning(f"Database init warning: {e}")
 
-        # Create tables from app.models
-        for table in ModelsBase.metadata.sorted_tables:
-            try:
-                table.create(bind=engine, checkfirst=True)
-            except Exception as table_err:
-                logger.warning(f"Table '{table.name}' init warning: {table_err}")
-
-        # Also create tables from database.Base (includes NewsUser from auth.py)
-        # Import auth to ensure NewsUser model is registered on DbBase
-        from app.api import auth as _auth_module  # noqa: F401
-        for table in DbBase.metadata.sorted_tables:
-            try:
-                table.create(bind=engine, checkfirst=True)
-            except Exception as table_err:
-                logger.warning(f"Table '{table.name}' (auth) init warning: {table_err}")
-
-        logger.info("✅ Database tables initialized successfully")
-    except Exception as e:
-        logger.warning(f"Database init warning: {e}")
+    asyncio.get_event_loop().run_in_executor(None, _init_db)
 
 
 # Global exception handler for consistent error responses
