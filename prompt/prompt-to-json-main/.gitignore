@@ -1,0 +1,149 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+<<<<<<< HEAD
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+=======
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+>>>>>>> 497be3b (Handover: project snapshot)
+.vscode/
+.idea/
+*.swp
+*.swo
+<<<<<<< HEAD
+*~
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+logs/*.log
+
+# Generated outputs
+outputs/*.json
+reports/backups/*
+
+# Keep directories but ignore contents
+!outputs/geometry/.gitkeep
+!reports/.gitkeep
+!reports/backups/.gitkeep
+
+# GLB files (too large for git)
+*.glb
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+=======
+
+# Logs
+*.log
+logs/
+lm_usage.log
+
+# Database
+*.db
+*.sqlite3
+
+# Environment Variables
+.env.local
+.env.production
+.env
+
+# Models & Checkpoints
+models_ckpt/
+*.pt
+*.pth
+*.ckpt
+*.zip
+*.bin
+*.safetensors
+
+# Reports
+reports/
+*.pdf
+*.xlsx
+>>>>>>> 497be3b (Handover: project snapshot)
+
+# Temporary files
+*.tmp
+*.temp
+
+~$*
+
+# Database dumps
+*.sql
+*.sqlite
+*.db
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Pip / packaging
+pip-wheel-metadata/
+pip-log.txt
+
+# pip caches / installed packages
+*.egg
+
+# Node
+node_modules/
+
+# Secrets/config
+secrets.json
+
+# Ignore compiled python files anywhere
+*.pyc
+__pycache__/
+=======
+.DS_Store
+Thumbs.db
+>>>>>>> 497be3b (Handover: project snapshot)

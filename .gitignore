@@ -24,3 +24,7 @@ tmp/
 Thumbs.db
 .vscode/
 .idea/
+
+# Windows reserved name
+nul
+prompt/nul

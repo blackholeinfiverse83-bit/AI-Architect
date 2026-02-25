@@ -1,0 +1,52 @@
+services:
+  # Main Backend API (Includes Video Generation)
+  - type: web
+    name: design-engine-api
+    env: python
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: prompt-to-json-main/backend
+    buildCommand: pip install --no-cache-dir -r requirements-production.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: DEMO_USERNAME
+        value: admin
+      - key: DEMO_PASSWORD
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ENVIRONMENT
+        value: production
+      - key: ENABLE_METRICS
+        value: false
+
+  # Frontend Web App
+  - type: web
+    name: bhiv-design-engine-frontend
+    env: node
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: frontend-webapp
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000

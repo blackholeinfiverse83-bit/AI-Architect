@@ -1,0 +1,480 @@
+/* ============================================
+   BHIV Design Engine - Premium UI Theme
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+:root {
+    /* Primary Palette - Architectural Navy */
+    --primary: #1a365d;
+    --primary-light: #2c5282;
+    --primary-dark: #0d1b2a;
+    
+    /* Accent - Golden Bronze */
+    --accent: #d4a574;
+    --accent-light: #e8c9a0;
+    --accent-dark: #b8956a;
+    
+    /* Backgrounds */
+    --bg-dark: #0f1419;
+    --bg-card: #1a1f26;
+    --bg-elevated: #242b33;
+    --bg-input: #161b22;
+    
+    /* Text */
+    --text-primary: #f0f0f0;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+    
+    /* Status Colors */
+    --success: #3fb950;
+    --warning: #d29922;
+    --error: #f85149;
+    --info: #58a6ff;
+    
+    /* Borders */
+    --border: #30363d;
+    --border-light: #3d444d;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-glow: 0 0 20px rgba(212, 165, 116, 0.15);
+    
+    /* Spacing */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    
+    /* Transitions */
+    --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================
+   Global Styles
+   ============================================ */
+
+html, body, [class*="css"] {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text-primary);
+    background: var(--bg-dark);
+}
+
+/* Background Pattern */
+[data-testid="stApp"] {
+    background: 
+        radial-gradient(ellipse at 20% 0%, rgba(26, 54, 93, 0.4) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 100%, rgba(212, 165, 116, 0.1) 0%, transparent 40%),
+        linear-gradient(180deg, var(--bg-dark) 0%, #0a0e12 100%);
+    background-attachment: fixed;
+}
+
+/* ============================================
+   Typography
+   ============================================ */
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+}
+
+h1 {
+    font-size: 2.5rem;
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+h2 {
+    font-size: 1.75rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+h3 {
+    font-size: 1.25rem;
+    color: var(--accent);
+}
+
+/* ============================================
+   Sidebar
+   ============================================ */
+
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, var(--bg-card) 0%, var(--primary-dark) 100%) !important;
+    border-right: 1px solid var(--border);
+}
+
+section[data-testid="stSidebar"]::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--primary-light));
+}
+
+/* ============================================
+   Cards & Containers
+   ============================================ */
+
+div[data-testid="stMetric"], 
+.stMarkdown,
+div.stButton > button,
+div[data-testid="stTextInput"] > div > div > input,
+div[data-testid="stTextArea"] > div > div > textarea,
+div[data-testid="stSelectbox"] > div > div > div,
+div[data-testid="stNumberInput"] > div > div > input {
+    border-radius: var(--radius-md) !important;
+}
+
+/* Custom Card */
+.premium-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    transition: var(--transition);
+}
+
+.premium-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-glow);
+}
+
+/* ============================================
+   Buttons
+   ============================================ */
+
+div.stButton > button {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: var(--radius-md);
+    transition: var(--transition);
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* Primary Button */
+div.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+    color: var(--primary-dark);
+    box-shadow: 0 4px 14px rgba(212, 165, 116, 0.3);
+}
+
+div.stButton > button[kind="primary"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(212, 165, 116, 0.4);
+    background: linear-gradient(135deg, var(--accent-light) 0%, var(--accent) 100%);
+}
+
+/* Secondary Button */
+div.stButton > button:not([kind="primary"]) {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+}
+
+div.stButton > button:not([kind="primary"]):hover {
+    background: var(--bg-card);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ============================================
+   Input Fields
+   ============================================ */
+
+div[data-testid="stTextInput"] > div > div > input,
+div[data-testid="stTextArea"] > div > div > textarea,
+div[data-testid="stSelectbox"] > div > div > div,
+div[data-testid="stNumberInput"] > div > div > input {
+    background: var(--bg-input) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border) !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.95rem !important;
+    transition: var(--transition);
+}
+
+div[data-testid="stTextInput"] > div > div > input:focus,
+div[data-testid="stTextArea"] > div > div > textarea:focus,
+div[data-testid="stSelectbox"] > div > div > div:focus-within,
+div[data-testid="stNumberInput"] > div > div > input:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.15) !important;
+    outline: none;
+}
+
+/* Textarea */
+div[data-testid="stTextArea"] > div > div > textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+/* Labels */
+div[data-testid="stTextInput"] label,
+div[data-testid="stTextArea"] label,
+div[data-testid="stSelectbox"] label,
+div[data-testid="stNumberInput"] label {
+    color: var(--text-secondary) !important;
+    font-weight: 500;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+/* ============================================
+   Tabs
+   ============================================ */
+
+div[data-testid="stTabBar"] button[role="tab"] {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    padding: 0.75rem 1.25rem;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    transition: var(--transition);
+}
+
+div[data-testid="stTabBar"] button[role="tab"][aria-selected="true"] {
+    color: var(--accent);
+    background: var(--bg-card);
+    border-bottom: 2px solid var(--accent);
+}
+
+div[data-testid="stTabBar"] button[role="tab"]:hover {
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+}
+
+/* ============================================
+   Metrics
+   ============================================ */
+
+div[data-testid="stMetric"] {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    transition: var(--transition);
+}
+
+div[data-testid="stMetric"]:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+div[data-testid="stMetricLabel"] {
+    color: var(--text-secondary) !important;
+    font-size: 0.8rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+div[data-testid="stMetricValue"] {
+    color: var(--accent) !important;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 1.5rem !important;
+}
+
+/* ============================================
+   Expanders
+   ============================================ */
+
+details {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+summary {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+summary:hover {
+    color: var(--accent);
+}
+
+details[open] summary {
+    border-bottom: 1px solid var(--border);
+}
+
+/* ============================================
+   JSON Display
+   ============================================ */
+
+div[data-testid="stJson"] {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85rem;
+    overflow-x: auto;
+}
+
+/* ============================================
+   Success/Error/Info Messages
+   ============================================ */
+
+div[data-testid="stSuccess"] {
+    background: rgba(63, 185, 80, 0.1);
+    border: 1px solid var(--success);
+    border-radius: var(--radius-md);
+    color: var(--success);
+    padding: 0.75rem 1rem;
+}
+
+div[data-testid="stError"] {
+    background: rgba(248, 81, 73, 0.1);
+    border: 1px solid var(--error);
+    border-radius: var(--radius-md);
+    color: var(--error);
+    padding: 0.75rem 1rem;
+}
+
+div[data-testid="stInfo"] {
+    background: rgba(88, 166, 255, 0.1);
+    border: 1px solid var(--info);
+    border-radius: var(--radius-md);
+    color: var(--info);
+    padding: 0.75rem 1rem;
+}
+
+div[data-testid="stWarning"] {
+    background: rgba(210, 153, 34, 0.1);
+    border: 1px solid var(--warning);
+    border-radius: var(--radius-md);
+    color: var(--warning);
+    padding: 0.75rem 1rem;
+}
+
+/* ============================================
+   Sliders
+   ============================================ */
+
+div[data-testid="stSlider"] .stSlider {
+    color: var(--accent);
+}
+
+div[data-testid="stSlider"] [role="slider"] {
+    background: var(--accent);
+    border: 2px solid var(--accent);
+}
+
+/* ============================================
+   Dividers
+   ============================================ */
+
+hr {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 2rem 0;
+}
+
+/* ============================================
+   Scrollbar
+   ============================================ */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-light);
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* Loading state */
+.stSpinner {
+    color: var(--accent);
+}
+
+/* ============================================
+   Responsive Adjustments
+   ============================================ */
+
+@media (max-width: 768px) {
+    h1 {
+        font-size: 1.75rem;
+    }
+    
+    h2 {
+        font-size: 1.25rem;
+    }
+    
+    .premium-card {
+        padding: 1rem;
+    }
+}
+
+/* ============================================
+   Custom Utility Classes
+   ============================================ */
+
+.text-accent { color: var(--accent); }
+.text-muted { color: var(--text-muted); }
+.text-success { color: var(--success); }
+.text-error { color: var(--error); }
+
+.bg-card { background: var(--bg-card); }
+.bg-elevated { background: var(--bg-elevated); }
+
+.border-accent { border-color: var(--accent); }
+.border-subtle { border-color: var(--border); }
+
+.shadow-glow { box-shadow: var(--shadow-glow); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
