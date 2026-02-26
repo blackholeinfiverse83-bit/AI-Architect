@@ -246,6 +246,13 @@ async def basic_health_check():
     return {"status": "ok", "service": "Design Engine API", "version": "0.1.0"}
 
 
+# Root endpoint - redirect to health
+@app.get("/", tags=["📊 Public Health"])
+async def root():
+    """Root endpoint - redirects to health check"""
+    return {"status": "ok", "service": "Design Engine API", "version": "0.1.0", "docs": "/docs", "health": "/health"}
+
+
 # Authentication endpoints (PUBLIC - visible in docs)
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["🔐 Authentication"])
 
