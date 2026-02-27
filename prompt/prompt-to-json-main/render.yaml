@@ -36,6 +36,6 @@ services:
       - key: RANJEET_SERVICE_AVAILABLE
         value: true
       - key: DEBUG
-        value: false
+        value: true
       - key: ENVIRONMENT
         value: production
