@@ -274,13 +274,13 @@ app.include_router(
     include_in_schema=False,
 )
 
-# 2. Core Design Generation (for Dashboard) - PUBLIC - visible in docs
+# 2. Core Design Generation (for Dashboard) - PUBLIC - visible in docs (NO AUTH for testing)
 app.include_router(
-    generate.router, prefix="/api/v1", tags=["🎨 Design Generation"], dependencies=[Depends(get_current_user)]
+    generate.router, prefix="/api/v1", tags=["🎨 Design Generation"]
 )
 
-# 3. 3D Geometry Generation (PUBLIC - visible in docs)
-app.include_router(geometry_generator.router, dependencies=[Depends(get_current_user)])
+# 3. 3D Geometry Generation (PUBLIC - no auth for testing)
+app.include_router(geometry_generator.router)
 
 # 4. Video Generation (PUBLIC - visible in docs)
 app.include_router(video.router, prefix="/api/v1/video", tags=["🎬 Video Generation"])
