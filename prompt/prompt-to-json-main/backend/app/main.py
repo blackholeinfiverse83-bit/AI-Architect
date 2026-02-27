@@ -117,7 +117,7 @@ async def startup_event():
         try:
             from app.models import Base as ModelsBase
             from app.database import engine, Base as DbBase
-            from app.api import auth as _auth_module  # noqa: F401
+            from app.api.auth import NewsUser
             for table in ModelsBase.metadata.sorted_tables:
                 try:
                     table.create(bind=engine, checkfirst=True)
@@ -128,6 +128,11 @@ async def startup_event():
                     table.create(bind=engine, checkfirst=True)
                 except Exception as table_err:
                     logger.warning(f"Table '{table.name}' (auth) init warning: {table_err}")
+            try:
+                NewsUser.__table__.create(bind=engine, checkfirst=True)
+                logger.info("✅ NewsUser table created/verified")
+            except Exception as table_err:
+                logger.warning(f"NewsUser table init warning: {table_err}")
             logger.info("✅ Database tables initialized successfully")
         except Exception as e:
             logger.warning(f"Database init warning: {e}")
