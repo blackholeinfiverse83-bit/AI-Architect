@@ -10,9 +10,11 @@ const API_BASE_URL = window.location.hostname === 'localhost' || window.location
 const VIDEO_API_BASE_URL = API_BASE_URL;
 
 // State Management
+const AUTH_API_BASE_URL = 'https://ai-being-ecwj.onrender.com';
+
 const state = {
-    authToken: null,
-    user: null,
+    authToken: localStorage.getItem('authToken'),
+    user: localStorage.getItem('user'),
     lastSpecId: null,
     lastSpecJson: null,
     lastPreviewUrl: null,
@@ -109,28 +111,26 @@ async function videoApiGet(endpoint, params = {}) {
 
 async function login(email, password) {
     try {
-        const formData = new URLSearchParams();
-        formData.append('username', email);  // OAuth2 form uses 'username' field for email
-        formData.append('password', password);
-
-        const response = await fetch(`${API_BASE_URL}/api/v1/auth/login/form`, {
+        const response = await fetch(`${AUTH_API_BASE_URL}/api/auth/login`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: formData
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
         });
 
         if (!response.ok) {
             const error = await response.json();
-            const detail = error.detail;
-            if (typeof detail === 'object' && detail.error) {
-                throw new Error(detail.error.message || 'Login failed');
-            }
-            throw new Error(typeof detail === 'string' ? detail : 'Login failed');
+            throw new Error(error.message || 'Login failed');
         }
 
         const data = await response.json();
-        state.authToken = data.access_token;
-        state.user = data.name || data.email || email;
+        const token = data.token;
+        const userName = data.user.name || data.user.email || email;
+        
+        state.authToken = token;
+        state.user = userName;
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('user', userName);
+        
         return data;
     } catch (error) {
         throw error;
@@ -139,39 +139,63 @@ async function login(email, password) {
 
 async function signup(email, password, name) {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/auth/signup`, {
+        const response = await fetch(`${AUTH_API_BASE_URL}/api/auth/signup`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                name: name || email.split('@')[0],
                 email: email,
-                password: password,
-                name: name || ''
+                password: password
             })
         });
 
         if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('Sign up is not available on this server. Use the demo account (admin / your password) or try logging in if you already have an account.');
-            }
-            let detail;
-            try {
-                const error = await response.json();
-                detail = error.detail;
-            } catch (_) {
-                throw new Error('Signup failed');
-            }
-            if (typeof detail === 'object' && detail.error) {
-                throw new Error(detail.error.message || 'Signup failed');
-            }
-            throw new Error(typeof detail === 'string' ? detail : 'Signup failed');
+            const error = await response.json();
+            throw new Error(error.message || 'Signup failed');
         }
 
         const data = await response.json();
-        state.authToken = data.access_token;
-        state.user = data.name || data.email || email;
+        const token = data.token;
+        const userName = data.user.name || data.user.email || email;
+        
+        state.authToken = token;
+        state.user = userName;
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('user', userName);
+        
         return data;
     } catch (error) {
         throw error;
+    }
+}
+
+async function checkAuth() {
+    const token = localStorage.getItem('authToken');
+    if (!token) return false;
+
+    try {
+        const response = await fetch(`${AUTH_API_BASE_URL}/api/auth/me`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            state.authToken = null;
+            state.user = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            return false;
+        }
+
+        const data = await response.json();
+        state.user = data.user.name || data.user.email;
+        localStorage.setItem('user', state.user);
+        return true;
+    } catch (error) {
+        console.error('Auth verification failed:', error);
+        return false;
     }
 }
 
@@ -914,10 +938,17 @@ function setupTabs() {
 }
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Check API health on load
     checkAPIHealth();
     checkVideoAPIHealth();
+
+    const isAuthenticated = await checkAuth();
+    if (isAuthenticated) {
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('main-screen').classList.remove('hidden');
+        document.getElementById('user-name').textContent = state.user;
+    }
 
     // Setup login and signup forms
     document.getElementById('login-form').addEventListener('submit', handleLogin);
@@ -931,6 +962,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logout-btn').addEventListener('click', () => {
         state.authToken = null;
         state.user = null;
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
         document.getElementById('main-screen').classList.add('hidden');
         document.getElementById('login-screen').classList.remove('hidden');
     });
