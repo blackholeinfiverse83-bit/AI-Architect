@@ -418,44 +418,32 @@ if __name__ != "__main__" and not settings.DATABASE_URL.startswith("sqlite:///:m
 def get_current_user(token: str = Depends(HTTPBearer())) -> str:
     """
     JWT authentication dependency
-    Validates JWT tokens and returns current user
+    Validates tokens by calling the external auth microservice and returns current user
     """
+    import requests
+    from fastapi import HTTPException
+    
+    token_str = token.credentials
     try:
-        from jose import jwt, JWTError
-        from app.config import settings
-
-        # Extract token from Bearer scheme
-        token_str = token.credentials
-
-        # Decode and validate JWT token
-        payload = jwt.decode(token_str, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
-
-        username = payload.get("sub")
-        if username is None:
+        response = requests.get(
+            "https://ai-being-ecwj.onrender.com/api/auth/me",
+            headers={"Authorization": f"Bearer {token_str}"},
+            timeout=5
+        )
+        if response.status_code != 200:
             raise HTTPException(
                 status_code=401,
-                detail="Invalid authentication credentials",
+                detail="Invalid or expired token from auth microservice",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-
+            
+        user_data = response.json().get("user", {})
+        username = user_data.get("name") or user_data.get("email") or "unknown_user"
         return username
-
-    except jwt.ExpiredSignatureError:
+    except requests.RequestException:
         raise HTTPException(
             status_code=401,
-            detail="Token has expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except (JWTError, jwt.JWTError):
-        raise HTTPException(
-            status_code=401,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication failed",
+            detail="Auth microservice unavailable",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -463,12 +451,10 @@ def get_current_user(token: str = Depends(HTTPBearer())) -> str:
 def get_current_user_optional(request: Request) -> Optional[str]:
     """
     Optional JWT authentication dependency
-    Returns username if token is valid, None otherwise (no exception)
+    Returns username if token is valid with the external microservice, None otherwise
     """
     try:
-        from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-        from jose import jwt, JWTError
-        from app.config import settings
+        import requests
         
         # Try to get authorization header
         auth_header = request.headers.get("Authorization")
@@ -480,17 +466,19 @@ def get_current_user_optional(request: Request) -> Optional[str]:
         if not token_str:
             return None
         
-        # Decode and validate JWT token
-        payload = jwt.decode(token_str, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
-        
-        username = payload.get("sub")
-        return username if username else None
-        
-    except (jwt.ExpiredSignatureError, JWTError, jwt.JWTError):
-        # Token invalid or expired - return None instead of raising
+        response = requests.get(
+            "https://ai-being-ecwj.onrender.com/api/auth/me",
+            headers={"Authorization": f"Bearer {token_str}"},
+            timeout=5
+        )
+        if response.status_code == 200:
+            user_data = response.json().get("user", {})
+            return user_data.get("name") or user_data.get("email") or "unknown_user"
+            
         return None
+        
     except Exception:
-        # Any other error - return None
+        # Any error (including network errors) - return None
         return None
 
 
