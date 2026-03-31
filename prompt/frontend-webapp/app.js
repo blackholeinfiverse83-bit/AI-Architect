@@ -354,7 +354,7 @@ function displayDesignResult(containerId, data) {
             ${previewUrl ? `
             <div class="info-item">
                 <div class="info-label">Preview URL</div>
-                <div class="info-value"><a href="${previewUrl}" target="_blank">${previewUrl}</a></div>
+                <div class="info-value"><a href="${previewUrl.startsWith('http') ? previewUrl : API_BASE_URL + previewUrl}" target="_blank">${previewUrl.length > 50 ? previewUrl.substring(0, 50) + '...' : previewUrl}</a></div>
             </div>
             ` : ''}
         </div>
@@ -496,15 +496,29 @@ async function handleQuickGenerate() {
     btn.disabled = true;
 
     try {
+        let decodedUserId = state.user || 'user';
+        if (state.authToken) {
+            try {
+                const payloadStr = atob(state.authToken.split('.')[1]);
+                const payloadObj = JSON.parse(payloadStr);
+                if (payloadObj.id) {
+                    decodedUserId = payloadObj.id;
+                }
+            } catch (e) {
+                console.warn("Could not decode user ID from token", e);
+            }
+        }
+
         const payload = {
-            user_id: state.user || 'user',
+            user_id: decodedUserId,
             prompt: document.getElementById('quick-prompt').value,
             city: document.getElementById('quick-city').value,
             style: document.getElementById('quick-style').value,
             context: {}
         };
 
-        const budget = parseInt(document.getElementById('quick-budget').value, 10);
+        const budgetEl = document.getElementById('quick-budget');
+        const budget = budgetEl ? parseInt(budgetEl.value, 10) : 0;
         if (Number.isFinite(budget) && budget > 0) {
             payload.context.budget = budget;
         }
@@ -937,10 +951,37 @@ function setupTabs() {
     });
 }
 
+function setupThemeToggle() {
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const currentTheme = localStorage.getItem('theme') || 'light';
+
+    if (currentTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        if (themeToggleBtn) themeToggleBtn.textContent = '☀️';
+    }
+
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', () => {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            if (isDark) {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+                themeToggleBtn.textContent = '🌙';
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                themeToggleBtn.textContent = '☀️';
+            }
+        });
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     // Check API health on load
     checkAPIHealth();
+
+    setupThemeToggle();
     checkVideoAPIHealth();
 
     const isAuthenticated = await checkAuth();

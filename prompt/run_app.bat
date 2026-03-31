@@ -9,7 +9,7 @@ taskkill /F /IM python.exe /T >nul 2>&1
 taskkill /F /IM node.exe /T >nul 2>&1
 
 echo 2. Launching Backend (FastAPI)...
-start "BHIV Backend" "prompt-to-json-main\backend\start_server.bat"
+start "BHIV Backend" "Design-Engine-\start_server.bat"
 
 echo 3. Launching Frontend (Express)...
 cd /d "frontend-webapp"

@@ -1,0 +1,49 @@
+# ============================================================
+# RENDER ENV TEMPLATE — design-engine-api (Backend)
+# ============================================================
+# Copy these KEYs to Render → design-engine-api → Environment.
+# Replace placeholder values with your real values (never commit real secrets).
+# Mark API keys and passwords as "Secret" in Render.
+# ============================================================
+
+# --- Required: Database & Auth ---
+DATABASE_URL=postgresql://postgres.YOUR_PROJECT_REF:YOUR_PASSWORD@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres
+SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+SUPABASE_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_KEY=your-supabase-service-role-key
+JWT_SECRET_KEY=your-long-random-secret-at-least-32-characters
+DEMO_USERNAME=admin
+DEMO_PASSWORD=your-demo-password
+
+# --- App ---
+ENVIRONMENT=production
+DEBUG=false
+DEMO_MODE=false
+PORT=10000
+PYTHON_VERSION=3.11.0
+ENABLE_METRICS=false
+
+# --- AI / Design generation (set at least one if using AI) ---
+OPENAI_API_KEY=your-openai-api-key
+GROQ_API_KEY=your-groq-api-key
+USE_AI_MODEL=true
+ANTHROPIC_API_KEY=your-anthropic-key-if-using
+
+# --- 3D generation (optional) ---
+MESHY_API_KEY=your-meshy-api-key
+TRIPO_API_KEY=your-tripo-api-key
+HUGGINGFACE_API_KEY=your-huggingface-token
+
+# --- Optional external services ---
+SOHAM_URL=https://ai-rule-api-w7z5.onrender.com
+RANJEET_SERVICE_AVAILABLE=true
+SENTRY_DSN=
+
+# ============================================================
+# RENDER ENV — bhiv-design-engine-frontend (Frontend)
+# ============================================================
+# Add these to Render → bhiv-design-engine-frontend → Environment.
+# ============================================================
+
+NODE_ENV=production
+PORT=3000

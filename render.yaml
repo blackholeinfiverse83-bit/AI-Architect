@@ -9,9 +9,9 @@ services:
     region: oregon
     plan: free
     branch: main
-    rootDir: prompt/prompt-to-json-main/backend
-    buildCommand: pip install --no-cache-dir -r requirements-production.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    rootDir: prompt/Design-Engine-/backend
+    buildCommand: pip install --no-cache-dir -r requirements_complete.txt
+    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION

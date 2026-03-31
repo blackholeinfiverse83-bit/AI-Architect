@@ -82,110 +82,101 @@
 
         <!-- Main App Screen -->
         <div id="main-screen" class="screen hidden">
-            <!-- Sidebar -->
-            <aside class="sidebar">
-                <div class="sidebar-header">
+            <!-- Top Nav -->
+            <header class="top-nav">
+                <div class="nav-brand">
                     <span class="logo-icon">🏗️</span>
-                    <div>
-                        <h3>Samrachna</h3>
-                        <small>AI Design & Architecture</small>
-                    </div>
+                    <h3>Samrachna</h3>
                 </div>
-
-                <nav class="sidebar-nav">
-                    <button class="nav-item active" data-tab="dashboard">
-                        <span>🏠</span> Dashboard
-                    </button>
-                    <button class="nav-item" data-tab="geometry">
-                        <span>📐</span> Geometry
-                    </button>
-                    <button class="nav-item" data-tab="videogen">
-                        <span>🎞️</span> Video Lab
-                    </button>
+                <nav class="nav-links">
+                    <button class="nav-item active" data-tab="dashboard">Dashboard</button>
+                    <button class="nav-item" data-tab="geometry">3D Editor</button>
                 </nav>
-
-                <div class="sidebar-footer">
-                    <div class="user-info">
-                        <span id="user-name">admin</span>
-                        <button id="logout-btn" class="btn btn-secondary btn-sm">Logout</button>
-                    </div>
+                <div class="user-actions">
+                    <button id="theme-toggle" class="btn btn-secondary btn-sm" aria-label="Toggle dark mode">🌙</button>
+                    <span id="user-name">admin</span>
+                    <button id="logout-btn" class="btn btn-secondary btn-sm">Sign Out</button>
                 </div>
-            </aside>
+            </header>
 
             <!-- Main Content -->
             <main class="main-content">
-                <header class="main-header">
-                    <h1>Samrachna</h1>
-                    <div class="api-status-badge">
-                        <span class="status-dot" id="header-status-dot"></span>
-                        <span id="header-status-text">Online</span>
-                    </div>
-                </header>
-
                 <!-- Dashboard Tab -->
                 <div id="tab-dashboard" class="tab-content active">
-                    <div class="metrics-grid">
-                        <div class="metric-card">
-                            <div class="metric-label">Total Designs</div>
-                            <div class="metric-value" id="dashboard-designs">0</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-label">API Status</div>
-                            <div class="metric-value" id="dashboard-api-status">Online</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-label">Last Spec</div>
-                            <div class="metric-value" id="dashboard-last-spec">None</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-label">Est. Cost</div>
-                            <div class="metric-value" id="dashboard-cost">N/A</div>
+                    <!-- Hero Section -->
+                    <div class="hero-section">
+                        <div class="hero-content">
+                            <span class="hero-subtitle">Explore our AI generated designs</span>
+                            <h2 class="hero-title">Generate your dream architecture</h2>
+                            <p class="hero-text">We are a full-service AI platform committed to helping our clients conceptualize and render properties with ease and confidence.</p>
+                            
+                            <!-- Search/Generate Bar -->
+                            <div class="search-bar-container">
+                                <div class="search-tabs">
+                                    <button class="search-tab active">Design</button>
+                                    <button class="search-tab">Plan</button>
+                                    <button class="search-tab">Render</button>
+                                </div>
+                                <div class="search-inputs" style="width:100%; display:flex; align-items:center;">
+                                    <div class="search-field" style="min-width:140px;">
+                                        <label>Location</label>
+                                        <select id="quick-city">
+                                            <option value="Mumbai">Mumbai</option>
+                                            <option value="Pune">Pune</option>
+                                            <option value="Ahmedabad">Ahmedabad</option>
+                                            <option value="Nashik">Nashik</option>
+                                            <option value="Bangalore">Bangalore</option>
+                                        </select>
+                                    </div>
+                                    <div class="search-divider"></div>
+                                    <div class="search-field" style="min-width:140px;">
+                                        <label>Style</label>
+                                        <select id="quick-style">
+                                            <option value="modern">Modern</option>
+                                            <option value="traditional">Traditional</option>
+                                            <option value="contemporary">Contemporary</option>
+                                        </select>
+                                    </div>
+                                    <div class="search-divider"></div>
+                                    <div class="search-field" style="flex:1;">
+                                        <label>Prompt</label>
+                                        <input type="text" id="quick-prompt" placeholder="Modern 3BHK flat..." style="border:none; padding:8px 0; background:transparent; width:100%;">
+                                    </div>
+                                    <div class="search-divider"></div>
+                                    <button id="quick-generate-btn" class="btn search-btn">Generate</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    <div class="card">
-                        <h3>⚡ Quick Generate</h3>
-                        <div class="form-group">
-                            <label>Describe your design:</label>
-                            <textarea id="quick-prompt" rows="3"
-                                placeholder="Design a modern 3-bedroom apartment in Mumbai..."></textarea>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>City</label>
-                                <select id="quick-city">
-                                    <option value="Mumbai">Mumbai</option>
-                                    <option value="Pune">Pune</option>
-                                    <option value="Ahmedabad">Ahmedabad</option>
-                                    <option value="Nashik">Nashik</option>
-                                    <option value="Bangalore">Bangalore</option>
-                                </select>
+                    
+                    <!-- Stats Section (moved from top) -->
+                    <div class="stats-section">
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-label">Total Designs</div>
+                                <div class="metric-value" id="dashboard-designs">0</div>
                             </div>
-                            <div class="form-group">
-                                <label>Style</label>
-                                <select id="quick-style">
-                                    <option value="modern">Modern</option>
-                                    <option value="traditional">Traditional</option>
-                                    <option value="contemporary">Contemporary</option>
-                                    <option value="rustic">Rustic</option>
-                                    <option value="industrial">Industrial</option>
-                                </select>
+                            <div class="metric-card">
+                                <div class="metric-label">API Status</div>
+                                <div class="metric-value" id="dashboard-api-status">Online</div>
                             </div>
-                            <div class="form-group">
-                                <label>Budget (INR)</label>
-                                <input type="number" id="quick-budget" value="0" min="0" step="100000">
-                                <small>0 for auto</small>
+                            <div class="metric-card">
+                                <div class="metric-label">Last Spec</div>
+                                <div class="metric-value" id="dashboard-last-spec" style="font-size: 16px;">None</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">Est. Cost</div>
+                                <div class="metric-value" id="dashboard-cost">N/A</div>
                             </div>
                         </div>
-
-                        <button id="quick-generate-btn" class="btn btn-primary">Generate</button>
-
+                    </div>
+                        <!-- Results Section -->
+                    <div class="results-wrapper">
                         <div id="quick-result" class="result-container hidden">
                             <!-- Results will appear here -->
                         </div>
                     </div>
-                </div>
+                </div> <!-- End tab-dashboard -->
 
 
                 <!-- Geometry Tab -->
@@ -193,21 +184,7 @@
                     <div class="card">
                         <h3>📐 3D Model Preview</h3>
 
-                        <!-- File Upload Section -->
-                        <div class="geometry-upload-section">
-                            <div id="geometry-drop-zone" class="geometry-drop-zone">
-                                <div class="drop-zone-content">
-                                    <div class="drop-zone-icon">📁</div>
-                                    <p class="drop-zone-text">Drag & drop GLB file here</p>
-                                    <p class="drop-zone-subtext">or</p>
-                                    <label for="geometry-file-input" class="btn btn-secondary">Browse Files</label>
-                                    <input type="file" id="geometry-file-input" accept=".glb,.gltf"
-                                        style="display: none;">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 3D Preview Section -->
+                        <!-- 3D Preview Section (At top now) -->
                         <div id="geometry-preview-section" class="geometry-preview-section">
                             <div id="geometry-preview-container" class="geometry-preview-container">
                                 <model-viewer id="geometry-viewer" src="" alt="3D Model Preview" auto-rotate
@@ -229,56 +206,27 @@
                                     style="display: none;">Clear Preview</button>
                             </div>
                         </div>
-                    </div>
-                </div>
 
+                        <hr> <!-- Visual separation -->
 
-                <!-- Video Lab Tab -->
-                <div id="tab-videogen" class="tab-content">
-                    <div class="video-lab-container">
-                        <div class="card script-input-area">
-                            <div
-                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                                <h3 style="margin-bottom: 0;">🎞️ Video Lab</h3>
-                                <div class="video-status-indicator">
-                                    <span class="video-status-dot" id="video-api-status-dot"></span>
-                                    <span id="video-api-status-text">Video API Offline</span>
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Video Script (.txt file)</label>
-                                <input type="file" id="video-script-file" accept=".txt">
-                                <small>Each line in the file will be converted into one frame of the video.</small>
-                            </div>
-
-                            <!-- Video Title removed as per user request -->
-
-                            <button id="generate-video-btn" class="btn btn-primary">
-                                <span>✨</span> Generate Video
-                            </button>
-
-                            <div id="video-gen-result" class="result-container hidden"></div>
-                        </div>
-
-                        <div class="card">
-                            <div
-                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                                <h3 style="margin-bottom: 0;">📽️ Generated Videos</h3>
-                                <button id="refresh-video-list-btn" class="btn btn-secondary btn-sm">
-                                    <span>🔄</span> Refresh
-                                </button>
-                            </div>
-                            <div id="video-gallery" class="video-gallery">
-                                <!-- Videos will be loaded here -->
-                                <div class="info-item">
-                                    <p style="text-align: center; color: var(--text-secondary);">Click Refresh to load
-                                        videos</p>
+                        <!-- File Upload Section (At bottom now) -->
+                        <div class="geometry-upload-section">
+                            <div id="geometry-drop-zone" class="geometry-drop-zone">
+                                <div class="drop-zone-content">
+                                    <div class="drop-zone-icon">📁</div>
+                                    <p class="drop-zone-text">Drag & drop GLB file here</p>
+                                    <p class="drop-zone-subtext">or</p>
+                                    <label for="geometry-file-input" class="btn btn-secondary">Browse Files</label>
+                                    <input type="file" id="geometry-file-input" accept=".glb,.gltf"
+                                        style="display: none;">
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+
+
             </main>
         </div>
     </div>
