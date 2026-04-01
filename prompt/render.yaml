@@ -32,21 +32,7 @@ services:
       - key: USE_AI_MODEL
         value: "true"
       - key: CORS_ORIGINS
-        value: "https://bhiv-design-engine-frontend.onrender.com,http://localhost:3000"
+        value: "*"
+      - key: CORS_CREDENTIALS
+        value: "False"
 
-  # Frontend Web App (Static Express server)
-  - type: web
-    name: bhiv-design-engine-frontend
-    env: node
-    region: oregon
-    plan: free
-    branch: main
-    rootDir: prompt/frontend-webapp
-    buildCommand: npm install
-    startCommand: node server.js
-    healthCheckPath: /health
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: "3000"
