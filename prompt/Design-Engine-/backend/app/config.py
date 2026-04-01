@@ -3,7 +3,7 @@ MongoDB Configuration - Complete Application Configuration
 Manages all environment variables, validation, and settings
 """
 import os
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from pydantic import Field, validator
 from pydantic_settings import BaseSettings
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     PORT: int = Field(default=8000, description="Server port")
     RELOAD: bool = Field(default=False, description="Auto-reload on code changes")
 
-    CORS_ORIGINS: List[str] = Field(
+    CORS_ORIGINS: Union[str, List[str]] = Field(
         default=[
             "http://localhost:3000",
             "http://localhost:3001",

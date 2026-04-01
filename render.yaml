@@ -41,9 +41,9 @@ services:
       - key: HUGGINGFACE_API_KEY
         sync: false
       - key: CORS_ORIGINS
-        value: "*"
+        value: '["*"]'
       - key: CORS_CREDENTIALS
-        value: "False"
+        value: "false"
       - key: USE_AI_MODEL
         value: "true"
       - key: ENABLE_METRICS
