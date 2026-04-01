@@ -20,14 +20,10 @@ services:
         value: "10000"
       - key: ENVIRONMENT
         value: production
-      - key: DATABASE_URL
+      - key: MONGODB_URL
         sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_KEY
-        sync: false
-      - key: SUPABASE_SERVICE_KEY
-        sync: false
+      - key: MONGODB_DATABASE
+        value: bhiv_db
       - key: JWT_SECRET_KEY
         sync: false
       - key: DEMO_USERNAME
@@ -44,22 +40,11 @@ services:
         sync: false
       - key: HUGGINGFACE_API_KEY
         sync: false
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: CORS_CREDENTIALS
+        value: "False"
+      - key: USE_AI_MODEL
+        value: "true"
       - key: ENABLE_METRICS
         value: "false"
-
-  # Frontend (Node/Express)
-  - type: web
-    name: bhiv-design-engine-frontend
-    env: node
-    region: oregon
-    plan: free
-    branch: main
-    rootDir: prompt/frontend-webapp
-    buildCommand: npm install
-    startCommand: npm start
-    healthCheckPath: /health
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: "3000"
