@@ -1,0 +1,55 @@
+services:
+  - type: web
+    name: design-engine-api
+    env: python
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: MONGODB_URL
+        sync: false
+      - key: MONGODB_DATABASE
+        value: bhiv_db
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: DEMO_USERNAME
+        value: admin
+      - key: DEMO_PASSWORD
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: MESHY_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: TRIPO_API_KEY
+        sync: false
+      - key: HUGGINGFACE_API_KEY
+        sync: false
+      - key: USE_AI_MODEL
+        value: "true"
+      - key: PROMPT_RUNNER_MODE
+        value: "ai"
+      - key: SOHUM_MCP_URL
+        value: https://ai-rule-api-w7z5.onrender.com
+      - key: SOHAM_URL
+        value: https://ai-rule-api-w7z5.onrender.com
+      - key: RANJEET_RL_URL
+        value: https://land-utilization-rl.onrender.com
+      - key: LAND_UTILIZATION_ENABLED
+        value: "true"
+      - key: RANJEET_SERVICE_AVAILABLE
+        value: "true"
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: CORS_CREDENTIALS
+        value: "False"
+      - key: DEBUG
+        value: "false"
+      - key: ENVIRONMENT
+        value: production

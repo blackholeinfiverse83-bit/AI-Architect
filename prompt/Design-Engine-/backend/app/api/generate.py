@@ -1,0 +1,279 @@
+"""
+Generate API - canonical design execution and export pipeline.
+"""
+
+import logging
+import time
+import uuid
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
+
+from app.auth_mongodb import get_current_user
+from app.core_bucket_pipeline import CoreBucketCanonicalOrchestrator
+from app.prompt_runner_adapter import PromptRunnerUnavailableError
+from app.schemas import GenerateRequest, GenerateResponse
+from app.spec_validator import SpecValidationError, validate_spec_json, validate_with_warnings
+from fastapi import APIRouter, Depends, HTTPException, status
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+def _extract_budget(request: GenerateRequest) -> Optional[float]:
+    constraints = getattr(request, "constraints", None) or {}
+    context = request.context or {}
+
+    budget = constraints.get("budget") if isinstance(constraints, dict) else None
+    if budget is None and isinstance(context, dict):
+        budget = context.get("budget")
+
+    if isinstance(budget, (int, float)) and budget > 0:
+        return float(budget)
+    return None
+
+
+def calculate_estimated_cost(spec_json: Dict[str, Any], city: str, budget: Optional[float] = None) -> float:
+    """Estimate cost in INR from dimensions, city and optional budget."""
+    dimensions = spec_json.get("dimensions", {}) if isinstance(spec_json.get("dimensions"), dict) else {}
+    width = float(dimensions.get("width", 10) or 10)
+    length = float(dimensions.get("length", 10) or 10)
+    stories = max(1, int(spec_json.get("stories", 1) or 1))
+
+    area_sqm = max(1.0, width * length)
+    area_sqft = area_sqm * 10.764
+
+    city_rates = {
+        "Mumbai": 2100,
+        "Nashik": 1000,
+        "Pune": 1450,
+        "Ahmedabad": 1775,
+        "Bangalore": 1800,
+        "Delhi": 1700,
+    }
+    rate_per_sqft = city_rates.get(city or "Mumbai", 2100)
+    calculated = int(area_sqft * rate_per_sqft * stories)
+
+    if budget and budget > 0:
+        return float(int(budget * 0.95))
+
+    return float(max(calculated, 100000))
+
+
+def _extract_export_urls(spec_json: Dict[str, Any], spec_id: str) -> Dict[str, str]:
+    metadata = spec_json.get("metadata", {}) if isinstance(spec_json.get("metadata"), dict) else {}
+    export_urls = metadata.get("export_urls", {}) if isinstance(metadata.get("export_urls"), dict) else {}
+
+    return {
+        "glb": export_urls.get("glb") or f"/static/geometry/{spec_id}.glb",
+        "stl": export_urls.get("stl") or f"/static/exports/{spec_id}.stl",
+        "step": export_urls.get("step") or f"/static/exports/{spec_id}.step",
+    }
+
+
+async def _save_spec_to_database(
+    spec_id: str,
+    request: GenerateRequest,
+    user_id: str,
+    spec_json: Dict[str, Any],
+    preview_url: str,
+    estimated_cost: float,
+    lm_provider: str,
+    generation_time_ms: int,
+) -> None:
+    """Persist generated spec to MongoDB. Fully non-fatal on any error."""
+    try:
+        from app.database_mongodb import get_database
+
+        db = get_database()
+
+        spec_data = {
+            "_id": spec_id,
+            "user_id": user_id,
+            "project_id": request.project_id,
+            "prompt": request.prompt,
+            "city": request.city or "Mumbai",
+            "spec_json": spec_json,
+            "design_type": spec_json.get("design_type"),
+            "preview_url": preview_url,
+            "geometry_url": preview_url,
+            "estimated_cost": estimated_cost,
+            "currency": "INR",
+            "compliance_status": "pending",
+            "status": "final",
+            "version": 1,
+            "generation_time_ms": generation_time_ms,
+            "lm_provider": lm_provider,
+            "created_at": datetime.now(timezone.utc),
+        }
+
+        await db.specs.insert_one(spec_data)
+        logger.info("Saved spec %s to database for user %s", spec_id, user_id)
+
+    except Exception as db_error:
+        logger.warning("Database save failed for %s (non-fatal): %s", spec_id, db_error)
+
+
+@router.post("/generate", response_model=GenerateResponse, status_code=status.HTTP_200_OK)
+async def generate_design(request: GenerateRequest, current_user: str = Depends(get_current_user)):
+    """
+    Generate a design using canonical routing:
+    User -> Core -> Bucket -> Prompt Runner Adapter -> Geometry -> Bucket -> Core Response
+    """
+    start_time = time.time()
+
+    if not request.prompt or len(request.prompt.strip()) < 10:
+        raise HTTPException(status_code=400, detail="Prompt must be at least 10 characters")
+
+    if not request.user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+
+    req_city = request.city or "Mumbai"
+    req_style = request.style or "modern"
+    budget = _extract_budget(request)
+
+    spec_id = f"spec_{uuid.uuid4().hex[:12]}"
+
+    core_payload = {
+        "spec_id": spec_id,
+        "user_id": current_user,          # Use verified user from token, not request body
+        "project_id": request.project_id,
+        "prompt": request.prompt,
+        "city": req_city,
+        "style": req_style,
+        "context": request.context or {},
+        "constraints": getattr(request, "constraints", None) or {},
+    }
+
+    orchestrator = CoreBucketCanonicalOrchestrator()
+
+    try:
+        canonical_result = await orchestrator.execute(spec_id=spec_id, request_payload=core_payload)
+    except PromptRunnerUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.error("Canonical execution failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Canonical execution pipeline failed") from exc
+
+    spec_json = canonical_result.spec_json
+
+    try:
+        validate_spec_json(spec_json)
+        warnings = validate_with_warnings(spec_json)
+        if warnings:
+            logger.info("Spec generated with %s non-critical warnings", len(warnings))
+    except SpecValidationError as exc:
+        logger.error("Spec validation failed: %s", exc)
+        raise HTTPException(
+            status_code=400, detail=f"Invalid specification from Prompt Runner adapter: {exc}"
+        ) from exc
+
+    estimated_cost = calculate_estimated_cost(spec_json=spec_json, city=req_city, budget=budget)
+    generation_time_ms = int((time.time() - start_time) * 1000)
+
+    metadata = spec_json.setdefault("metadata", {})
+    metadata["estimated_cost"] = estimated_cost
+    metadata["currency"] = "INR"
+    metadata["generation_provider"] = canonical_result.provider
+    metadata["city"] = req_city
+    metadata["style"] = req_style
+    metadata["generation_time_ms"] = generation_time_ms
+    metadata["bucket_trace_id"] = canonical_result.bucket_trace_id
+    if budget:
+        metadata["budget_provided"] = budget
+
+    spec_json["estimated_cost"] = {"total": estimated_cost, "currency": "INR"}
+
+    export_urls = _extract_export_urls(spec_json, spec_id)
+    preview_url = export_urls["glb"]
+    compliance_check_id = f"check_{spec_id}"
+
+    # Save to DB asynchronously (non-blocking)
+    import asyncio
+    asyncio.create_task(
+        _save_spec_to_database(
+            spec_id=spec_id,
+            request=request,
+            user_id=current_user,
+            spec_json=spec_json,
+            preview_url=preview_url,
+            estimated_cost=estimated_cost,
+            lm_provider=canonical_result.provider,
+            generation_time_ms=generation_time_ms,
+        )
+    )
+
+    return GenerateResponse(
+        spec_id=spec_id,
+        spec_json=spec_json,
+        preview_url=preview_url,
+        estimated_cost=estimated_cost,
+        compliance_check_id=compliance_check_id,
+        created_at=datetime.now(timezone.utc),
+        spec_version=1,
+        user_id=current_user,
+        city=req_city,
+        lm_provider=canonical_result.provider,
+        generation_time_ms=generation_time_ms,
+        export_urls=export_urls,
+        glb_url=export_urls.get("glb"),
+        stl_url=export_urls.get("stl"),
+        step_url=export_urls.get("step"),
+        thumbnail_url=metadata.get("meshy_thumbnail_url"),
+        meshy_video_url=metadata.get("meshy_video_url"),
+    )
+
+
+@router.get("/specs/{spec_id}", response_model=GenerateResponse)
+async def get_spec(spec_id: str, current_user: str = Depends(get_current_user)):
+    """Retrieve existing specification by ID."""
+    from app.database_mongodb import get_database
+
+    try:
+        db = get_database()
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+
+    try:
+        db_spec = await db.specs.find_one({"_id": spec_id})
+        if not db_spec:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Specification '{spec_id}' not found. Generate a design first using /api/v1/generate",
+            )
+
+        spec_json = db_spec.get("spec_json") or {}
+        export_urls = _extract_export_urls(spec_json, spec_id)
+        preview_url = db_spec.get("preview_url") or db_spec.get("geometry_url") or export_urls["glb"]
+
+        estimated_cost = db_spec.get("estimated_cost")
+        if estimated_cost is None:
+            estimated_cost = (
+                spec_json.get("estimated_cost", {}).get("total")
+                if isinstance(spec_json.get("estimated_cost"), dict)
+                else None
+            )
+        if estimated_cost is None:
+            estimated_cost = 0.0
+
+        return GenerateResponse(
+            spec_id=db_spec["_id"],
+            spec_json=spec_json,
+            preview_url=preview_url,
+            estimated_cost=float(estimated_cost),
+            compliance_check_id=f"check_{spec_id}",
+            created_at=db_spec.get("created_at") or datetime.now(timezone.utc),
+            spec_version=db_spec.get("version") or 1,
+            user_id=db_spec["user_id"],
+            city=db_spec["city"],
+            lm_provider=db_spec.get("lm_provider"),
+            generation_time_ms=db_spec.get("generation_time_ms"),
+            export_urls=export_urls,
+            glb_url=export_urls.get("glb"),
+            stl_url=export_urls.get("stl"),
+            step_url=export_urls.get("step"),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error retrieving spec %s: %s", spec_id, e)
+        raise HTTPException(status_code=500, detail="Database error")
