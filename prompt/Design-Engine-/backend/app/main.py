@@ -161,7 +161,11 @@ else:
 
 cors_origins = list(settings.CORS_ORIGINS or [])
 if not cors_origins:
-    cors_origins = ["http://localhost:3000", "http://localhost:3001"]
+    cors_origins = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://ai-architect-gray.vercel.app"
+    ]
 if "*" in cors_origins and settings.CORS_CREDENTIALS:
     logger.warning("CORS wildcard '*' removed because credentials are enabled")
     cors_origins = [origin for origin in cors_origins if origin != "*"]
