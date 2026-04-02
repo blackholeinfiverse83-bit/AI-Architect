@@ -1046,9 +1046,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Setup all button handlers (only Dashboard, Geometry, and Video Lab)
-    document.getElementById('quick-generate-btn').addEventListener('click', handleQuickGenerate);
-    document.getElementById('load-preview-btn').addEventListener('click', loadPreviewFromLastDesign);
-    document.getElementById('clear-preview-btn').addEventListener('click', clearPreview);
+    document.getElementById('quick-generate-btn')?.addEventListener('click', handleQuickGenerate);
+    document.getElementById('load-preview-btn')?.addEventListener('click', loadPreviewFromLastDesign);
+    document.getElementById('clear-preview-btn')?.addEventListener('click', clearPreview);
 
     // Setup Geometry file upload handlers (with delay to ensure DOM is ready)
     setTimeout(() => {
@@ -1056,6 +1056,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 500);
 
     // Video Lab handlers
-    document.getElementById('generate-video-btn').addEventListener('click', handleGenerateVideo);
-    document.getElementById('refresh-video-list-btn').addEventListener('click', handleRefreshVideoList);
+    document.getElementById('generate-video-btn')?.addEventListener('click', handleGenerateVideo);
+    document.getElementById('refresh-video-list-btn')?.addEventListener('click', handleRefreshVideoList);
 });
