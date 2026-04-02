@@ -10,7 +10,7 @@ const API_BASE_URL = window.location.hostname === 'localhost' || window.location
 const VIDEO_API_BASE_URL = API_BASE_URL;
 
 // State Management
-const AUTH_API_BASE_URL = API_BASE_URL;
+const AUTH_API_BASE_URL = 'https://ai-being-ecwj.onrender.com';
 
 const state = {
     authToken: localStorage.getItem('authToken'),
