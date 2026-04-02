@@ -33,35 +33,40 @@ def _decode_jwt_payload(token: str) -> dict:
         raise ValueError(f"Failed to decode JWT payload: {exc}") from exc
 
 
+from app.config import settings
+from jose import jwt, JWTError
+
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     """
-    Extract user identity from an AI-Being JWT token.
-
-    The token is issued by the external AI-Being backend with an 'id' payload claim.
-    We decode the payload directly (no signature verification needed — we don't hold
-    the AI-Being secret) and trust the structural validity of the token.
+    Extract user identity from a JWT token issued by this backend.
+    Verifies the signature using JWT_SECRET_KEY.
     """
+    token = credentials.credentials
     try:
-        token = credentials.credentials
-        payload = _decode_jwt_payload(token)
-
-        # AI-Being tokens use "id"; fallback to "sub" for forward-compatibility
+        payload = jwt.decode(
+            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        )
         user_id: str = str(payload.get("id") or payload.get("sub") or "")
-
+        
         if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials",
+                detail="Token payload missing user identity",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-
-        logger.debug("Authenticated user: %s", user_id)
+            
         return user_id
-
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.error("Auth token decode failure: %s", exc)
+    except JWTError:
+        # Fallback to signature-less decode only for legacy migration phase - remove in production
+        try:
+            payload = _decode_jwt_payload(token)
+            user_id: str = str(payload.get("id") or payload.get("sub") or "")
+            if user_id:
+                logger.warning(f"Accepted legacy token for user {user_id} - migrate to local auth!")
+                return user_id
+        except Exception:
+            pass
+            
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",

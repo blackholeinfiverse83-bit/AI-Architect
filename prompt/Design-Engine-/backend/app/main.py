@@ -230,7 +230,7 @@ async def basic_health_check():
     return {"status": "ok", "service": "Design Engine API", "version": "0.1.0"}
 
 
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(files.router, prefix="/api/v1", tags=["File Download"])
 app.include_router(downloads.router, tags=["File Downloads"])
 app.include_router(health.router, prefix="/api/v1", tags=["System Health"], include_in_schema=False)

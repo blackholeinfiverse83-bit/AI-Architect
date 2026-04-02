@@ -209,6 +209,9 @@ class Settings(BaseSettings):
     # SECURITY CONFIGURATION
     # ============================================================================
     ENCRYPTION_KEY: Optional[str] = Field(default=None, description="Encryption key material")
+    JWT_SECRET_KEY: str = Field(default="dev_secret_key_change_in_production", description="JWT secret key")
+    JWT_ALGORITHM: str = Field(default="HS256", description="JWT algorithm")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=1440, description="Token expiry in minutes (24h)")
 
     # ============================================================================
     # DEMO CONFIGURATION
