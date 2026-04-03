@@ -6,8 +6,6 @@ const API_BASE_URL = window.location.hostname === 'localhost' || window.location
     ? 'http://127.0.0.1:8000'
     : 'https://design-engine-api-gvch.onrender.com'; // Actual Render backend URL
 
-// Video API now uses the same backend
-const VIDEO_API_BASE_URL = API_BASE_URL;
 
 // State Management
 const AUTH_API_BASE_URL = 'https://ai-being-ecwj.onrender.com';
@@ -21,8 +19,6 @@ const state = {
     lastCost: 0,
     recentDesigns: [],
     apiConnected: false,
-    videoApiConnected: false,
-    videos: [],
     uploadedGLBFile: null  // Store uploaded GLB file info
 };
 
@@ -61,53 +57,6 @@ async function checkAPIHealth() {
     }
 }
 
-async function checkVideoAPIHealth() {
-    try {
-        const response = await fetch(`${VIDEO_API_BASE_URL}/api/v1/video/health`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        state.videoApiConnected = response.ok;
-        updateVideoAPIStatus(response.ok);
-        return response.ok;
-    } catch (error) {
-        state.videoApiConnected = false;
-        updateVideoAPIStatus(false);
-        return false;
-    }
-}
-
-async function videoApiPost(endpoint, formData) {
-    const headers = {};
-    if (state.authToken) {
-        headers['Authorization'] = `Bearer ${state.authToken}`;
-    }
-
-    const response = await fetch(`${VIDEO_API_BASE_URL}${endpoint}`, {
-        method: 'POST',
-        headers,
-        body: formData
-    });
-
-    return response;
-}
-
-async function videoApiGet(endpoint, params = {}) {
-    const headers = {};
-    if (state.authToken) {
-        headers['Authorization'] = `Bearer ${state.authToken}`;
-    }
-
-    const queryString = new URLSearchParams(params).toString();
-    const url = queryString ? `${VIDEO_API_BASE_URL}${endpoint}?${queryString}` : `${VIDEO_API_BASE_URL}${endpoint}`;
-
-    const response = await fetch(url, {
-        method: 'GET',
-        headers
-    });
-
-    return response;
-}
 
 async function login(email, password) {
     try {
@@ -199,11 +148,6 @@ async function checkAuth() {
     }
 }
 
-// Video API now uses the same backend, so no separate login needed
-async function loginVideoAPI() {
-    // Video API is now part of main backend, use existing auth
-    return null;
-}
 
 async function apiPost(endpoint, payload = {}) {
     const headers = {
@@ -265,18 +209,6 @@ function updateAPIStatus(isOnline) {
     }
 }
 
-function updateVideoAPIStatus(isOnline) {
-    const dot = document.getElementById('video-api-status-dot');
-    const text = document.getElementById('video-api-status-text');
-
-    if (isOnline) {
-        dot?.classList.add('online');
-        if (text) text.textContent = 'Video API Online';
-    } else {
-        dot?.classList.remove('online');
-        if (text) text.textContent = 'Video API Offline';
-    }
-}
 
 function showError(elementId, message) {
     const element = document.getElementById(elementId);
@@ -746,173 +678,6 @@ function setupGeometryFileUpload() {
 
 // Removed handlers for Reports and RL Training tabs
 
-async function handleGenerateVideo() {
-    const btn = document.getElementById('generate-video-btn');
-    const originalText = btn.innerHTML;
-    const fileInput = document.getElementById('video-script-file');
-
-    const file = fileInput.files[0];
-
-    if (!file) {
-        showResult('video-gen-result', 'Please select a script file (.txt)', true);
-        return;
-    }
-
-    // Use filename (without extension) as the title
-    const title = file.name.replace(/\.[^/.]+$/, "");
-
-    btn.innerHTML = '<span class="spinner"></span> Generating...';
-    btn.disabled = true;
-
-    try {
-        // Try to authenticate with video API if not already authenticated
-        if (!state.authToken) {
-            await loginVideoAPI();
-        }
-
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('title', title);
-
-        const response = await videoApiPost('/api/v1/video/generate-video', formData);
-        const data = await response.json();
-
-        if (response.ok) {
-            showResult('video-gen-result', data);
-            // Add new video ID to sessionStorage
-            if (data.content_id) {
-                const existingIds = JSON.parse(sessionStorage.getItem('videoIds') || '[]');
-                existingIds.push(data.content_id);
-                sessionStorage.setItem('videoIds', JSON.stringify(existingIds));
-            }
-            // Refresh video list to show the new video
-            await handleRefreshVideoList();
-        } else {
-            // If 401, try to login and retry
-            if (response.status === 401) {
-                await loginVideoAPI();
-                const retryResponse = await videoApiPost('/generate-video', formData);
-                const retryData = await retryResponse.json();
-                if (retryResponse.ok) {
-                    showResult('video-gen-result', retryData);
-                    handleRefreshVideoList();
-                } else {
-                    showResult('video-gen-result', retryData, true);
-                }
-            } else {
-                showResult('video-gen-result', data, true);
-            }
-        }
-    } catch (error) {
-        showResult('video-gen-result', error.message, true);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function handleRefreshVideoList() {
-    const gallery = document.getElementById('video-gallery');
-
-    try {
-        const response = await videoApiGet('/api/v1/video/contents');
-        const data = await response.json();
-
-        if (response.ok) {
-            state.videos = data.items || [];
-            // Store video IDs in sessionStorage for cleanup on refresh
-            const videoIds = state.videos.map(v => v.content_id);
-            sessionStorage.setItem('videoIds', JSON.stringify(videoIds));
-            renderVideoGallery(state.videos);
-        } else {
-            gallery.innerHTML = `<div class="info-item error">Error loading videos: ${data.message || 'Unknown error'}</div>`;
-        }
-    } catch (error) {
-        gallery.innerHTML = `<div class="info-item error">Error connecting to Video API: ${error.message}</div>`;
-    }
-}
-
-async function deleteVideo(contentId) {
-    try {
-        const headers = {};
-        if (state.authToken) {
-            headers['Authorization'] = `Bearer ${state.authToken}`;
-        }
-
-        const response = await fetch(`${VIDEO_API_BASE_URL}/api/v1/video/content/${contentId}`, {
-            method: 'DELETE',
-            headers
-        });
-
-        return response.ok;
-    } catch (error) {
-        console.error(`Failed to delete video ${contentId}:`, error);
-        return false;
-    }
-}
-
-async function cleanupVideosOnRefresh() {
-    // Get video IDs from sessionStorage
-    const videoIdsJson = sessionStorage.getItem('videoIds');
-    if (!videoIdsJson) {
-        return;
-    }
-
-    try {
-        const videoIds = JSON.parse(videoIdsJson);
-        // Delete all videos in parallel (fire and forget - don't wait)
-        videoIds.forEach(contentId => {
-            deleteVideo(contentId).catch(err => {
-                console.error(`Error deleting video ${contentId}:`, err);
-            });
-        });
-
-        // Clear sessionStorage after cleanup
-        sessionStorage.removeItem('videoIds');
-    } catch (error) {
-        console.error('Error during video cleanup:', error);
-    }
-}
-
-function renderVideoGallery(videos) {
-    const gallery = document.getElementById('video-gallery');
-
-    if (videos.length === 0) {
-        gallery.innerHTML = '<div class="info-item"><p style="text-align: center; color: var(--text-secondary);">No videos generated yet</p></div>';
-        return;
-    }
-
-    gallery.innerHTML = videos.map(video => `
-        <div class="video-card" data-id="${video.content_id}">
-            <div class="video-player-container">
-                <video controls preload="metadata" crossorigin="anonymous" style="width: 100%; max-height: 400px;">
-                    <source src="${VIDEO_API_BASE_URL}${video.stream_url || `/api/v1/video/stream/${video.content_id}`}" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
-            </div>
-            <div class="video-info">
-                <div class="video-title">${video.title || 'Untitled Video'}</div>
-                <div class="video-meta">
-                    <span>📅 ${video.uploaded_at ? new Date(typeof video.uploaded_at === 'number' ? video.uploaded_at * 1000 : new Date(video.uploaded_at).getTime()).toLocaleDateString() : 'N/A'}</span>
-                    <span>⏱️ ${video.duration_ms ? Math.round(video.duration_ms / 1000) : 0}s</span>
-                </div>
-                <div class="tag-container" id="tags-${video.content_id}">
-                    ${(() => {
-            try {
-                const tags = typeof video.current_tags === 'string' ? JSON.parse(video.current_tags || '[]') : (video.current_tags || []);
-                return tags.map(tag => `<span class="tag">${tag}</span>`).join('');
-            } catch (e) {
-                return '';
-            }
-        })()}
-                </div>
-                <a href="${VIDEO_API_BASE_URL}${video.download_url || `/api/v1/video/download/${video.content_id}`}" class="btn btn-primary btn-sm mt-2" style="width: 100%; display: block; text-align: center; text-decoration: none;" download="${video.content_id}.mp4">
-                    <span>⬇️</span> Download Video
-                </a>
-            </div>
-        </div>
-    `).join('');
-}
 
 
 // Tab Navigation
@@ -935,11 +700,6 @@ function setupTabs() {
                     content.classList.add('active');
                 }
             });
-
-            // Auto-load videos when Video Lab tab is opened
-            if (tabId === 'videogen') {
-                handleRefreshVideoList();
-            }
 
             // Auto-load preview when Geometry tab is opened
             if (tabId === 'geometry') {
@@ -982,7 +742,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     checkAPIHealth();
 
     setupThemeToggle();
-    checkVideoAPIHealth();
 
     const isAuthenticated = await checkAuth();
     if (isAuthenticated) {
@@ -1009,43 +768,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('login-screen').classList.remove('hidden');
     });
 
-    // Cleanup videos from previous session on page load
-    cleanupVideosOnRefresh();
-
-    // Cleanup videos on page refresh/unload
-    window.addEventListener('beforeunload', () => {
-        // Try to cleanup current session videos (fire and forget)
-        const videoIdsJson = sessionStorage.getItem('videoIds');
-        if (videoIdsJson) {
-            try {
-                const videoIds = JSON.parse(videoIdsJson);
-                videoIds.forEach(contentId => {
-                    // Use fetch with keepalive for fire-and-forget deletion
-                    const headers = {};
-                    if (state.authToken) {
-                        headers['Authorization'] = `Bearer ${state.authToken}`;
-                    }
-                    fetch(`${VIDEO_API_BASE_URL}/api/v1/video/content/${contentId}`, {
-                        method: 'DELETE',
-                        headers,
-                        keepalive: true
-                    }).catch(() => { }); // Ignore errors
-                });
-            } catch (e) {
-                // Ignore errors during unload
-            }
-        }
-    });
-
-    // Also cleanup on page visibility change (when user switches tabs)
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            // Page is now hidden, cleanup videos
-            cleanupVideosOnRefresh();
-        }
-    });
-
-    // Setup all button handlers (only Dashboard, Geometry, and Video Lab)
+    // Setup all button handlers (only Dashboard and Geometry)
     document.getElementById('quick-generate-btn')?.addEventListener('click', handleQuickGenerate);
     document.getElementById('load-preview-btn')?.addEventListener('click', loadPreviewFromLastDesign);
     document.getElementById('clear-preview-btn')?.addEventListener('click', clearPreview);
@@ -1055,7 +778,4 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupGeometryFileUpload();
     }, 500);
 
-    // Video Lab handlers
-    document.getElementById('generate-video-btn')?.addEventListener('click', handleGenerateVideo);
-    document.getElementById('refresh-video-list-btn')?.addEventListener('click', handleRefreshVideoList);
 });
