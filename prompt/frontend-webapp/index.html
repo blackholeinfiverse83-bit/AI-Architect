@@ -176,6 +176,24 @@
                             <!-- Results will appear here -->
                         </div>
                     </div>
+
+                    <!-- Recent Designs History Section -->
+                    <div class="history-section">
+                        <div class="history-header">
+                            <h3 class="history-title">🕐 Recent Designs</h3>
+                            <button id="refresh-history-btn" class="btn btn-secondary btn-sm">↻ Refresh</button>
+                        </div>
+                        <div id="history-loading" class="history-loading hidden">
+                            <span class="spinner"></span> Loading designs...
+                        </div>
+                        <div id="history-empty" class="history-empty hidden">
+                            <p>No designs generated yet. Create your first design above!</p>
+                        </div>
+                        <div id="history-error" class="history-error hidden"></div>
+                        <div id="history-grid" class="history-grid">
+                            <!-- Design cards injected here by app.js -->
+                        </div>
+                    </div>
                 </div> <!-- End tab-dashboard -->
 
 

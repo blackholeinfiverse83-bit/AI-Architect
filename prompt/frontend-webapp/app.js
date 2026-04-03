@@ -473,6 +473,7 @@ async function handleQuickGenerate() {
             displayDesignResult('quick-result', data);
             updateDashboard();
             updateInputValues();
+            loadHistory(); // Refresh history grid with new design
 
             // Store preview URL for Geometry tab (will auto-load when tab is opened)
             // Preview will be shown automatically when user switches to Geometry tab
@@ -736,6 +737,126 @@ function setupThemeToggle() {
     }
 }
 
+// ── History ──────────────────────────────────────────────────────────────────
+
+function formatCurrencyCompact(amount) {
+    if (!amount || amount === 0) return 'N/A';
+    if (amount >= 10000000) return '₹' + (amount / 10000000).toFixed(1) + 'Cr';
+    if (amount >= 100000) return '₹' + (amount / 100000).toFixed(1) + 'L';
+    return '₹' + Math.round(amount).toLocaleString('en-IN');
+}
+
+async function loadHistory() {
+    if (!state.authToken) return;
+
+    const grid    = document.getElementById('history-grid');
+    const loading = document.getElementById('history-loading');
+    const empty   = document.getElementById('history-empty');
+    const errEl   = document.getElementById('history-error');
+
+    if (!grid) return;
+
+    // Show loading state
+    loading?.classList.remove('hidden');
+    empty?.classList.add('hidden');
+    errEl?.classList.add('hidden');
+    grid.innerHTML = '';
+
+    try {
+        const response = await apiGet('/api/v1/history', { limit: 20 });
+        const data = await response.json();
+
+        loading?.classList.add('hidden');
+
+        if (!response.ok) {
+            errEl.textContent = `Error: ${data.detail || data.message || 'Failed to load history'}`;
+            errEl?.classList.remove('hidden');
+            return;
+        }
+
+        const specs = data.specs || [];
+
+        // Update dashboard total count with real DB total
+        const totalEl = document.getElementById('dashboard-designs');
+        if (totalEl) totalEl.textContent = data.total_specs || specs.length;
+
+        if (specs.length === 0) {
+            empty?.classList.remove('hidden');
+            return;
+        }
+
+        renderHistoryGrid(specs);
+    } catch (err) {
+        loading?.classList.add('hidden');
+        if (errEl) {
+            errEl.textContent = `Connection error: ${err.message}`;
+            errEl.classList.remove('hidden');
+        }
+    }
+}
+
+function renderHistoryGrid(specs) {
+    const grid = document.getElementById('history-grid');
+    if (!grid) return;
+
+    grid.innerHTML = specs.map(spec => {
+        const date = spec.created_at
+            ? new Date(spec.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+            : 'Unknown date';
+        const cost = formatCurrencyCompact(spec.estimated_cost);
+        const city = spec.city || '—';
+        const prompt = spec.prompt || 'No prompt';
+        const shortPrompt = prompt.length > 80 ? prompt.substring(0, 80) + '…' : prompt;
+        const designType = spec.design_type || 'Design';
+        const specId = spec.spec_id || '';
+        const shortId = specId.length > 16 ? specId.substring(0, 16) + '…' : specId;
+
+        return `
+        <div class="history-card" data-spec-id="${specId}">
+            <div class="history-card-header">
+                <span class="history-badge">${designType}</span>
+                <span class="history-date">${date}</span>
+            </div>
+            <p class="history-prompt">${shortPrompt}</p>
+            <div class="history-meta">
+                <span class="history-meta-item">📍 ${city}</span>
+                <span class="history-meta-item">💰 ${cost}</span>
+            </div>
+            <div class="history-card-footer">
+                <code class="history-spec-id" title="${specId}">${shortId}</code>
+                <button class="btn btn-secondary btn-xs history-view-btn" data-spec-id="${specId}">View JSON</button>
+            </div>
+        </div>`;
+    }).join('');
+
+    // Attach View JSON handlers
+    grid.querySelectorAll('.history-view-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const sid = btn.getAttribute('data-spec-id');
+            btn.textContent = 'Loading…';
+            btn.disabled = true;
+            try {
+                const res = await apiGet(`/api/v1/history/${sid}`);
+                const data = await res.json();
+                const resultEl = document.getElementById('quick-result');
+                if (resultEl) {
+                    resultEl.classList.remove('hidden', 'error');
+                    resultEl.classList.add('success');
+                    resultEl.innerHTML = `
+                        <div class="result-header success"><span>📄</span> Spec: ${sid}</div>
+                        <div class="json-viewer">${formatJSON(data.spec_json || data)}</div>`;
+                    resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            } catch (e) {
+                alert('Failed to load spec: ' + e.message);
+            } finally {
+                btn.textContent = 'View JSON';
+                btn.disabled = false;
+            }
+        });
+    });
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     // Check API health on load
@@ -748,6 +869,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('main-screen').classList.remove('hidden');
         document.getElementById('user-name').textContent = state.user;
+        loadHistory(); // Load history for returning users
     }
 
     // Setup login and signup forms
@@ -772,6 +894,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('quick-generate-btn')?.addEventListener('click', handleQuickGenerate);
     document.getElementById('load-preview-btn')?.addEventListener('click', loadPreviewFromLastDesign);
     document.getElementById('clear-preview-btn')?.addEventListener('click', clearPreview);
+    document.getElementById('refresh-history-btn')?.addEventListener('click', loadHistory);
 
     // Setup Geometry file upload handlers (with delay to ensure DOM is ready)
     setTimeout(() => {
