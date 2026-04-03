@@ -3,8 +3,8 @@
 // For local development: 'http://127.0.0.1:8000'
 // For Render deployment, update this to your backend URL:
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://127.0.0.1:8000'
-    : 'https://design-engine-api-gvch.onrender.com'; // Actual Render backend URL
+    ? `http://${window.location.hostname}:8000` // Dynamically match the current hostname
+    : 'https://design-engine-api-gvch.onrender.com';
 
 
 // State Management
@@ -272,7 +272,12 @@ function displayDesignResult(containerId, data) {
 
     container.innerHTML = `
         <div class="result-header success">
-            <span>✅</span> Design Generated Successfully
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <span>✅ Design Generated Successfully</span>
+                <button id="tts-report-btn" class="btn btn-secondary btn-sm" style="background: rgba(2, 114, 194, 0.1); border: 1px solid var(--primary);">
+                    🔊 Listen to Report
+                </button>
+            </div>
         </div>
         <div class="info-grid">
             <div class="info-item">
@@ -292,6 +297,95 @@ function displayDesignResult(containerId, data) {
         </div>
         <div class="json-viewer">${formatJSON(specJson)}</div>
     `;
+
+    // Attach TTS handler
+    const ttsBtn = document.getElementById('tts-report-btn');
+    if (ttsBtn) {
+        ttsBtn.addEventListener('click', () => handleListenReport(specJson, ttsBtn));
+    }
+}
+
+/**
+ * Converts a design JSON object into a readable report text for TTS
+ */
+function jsonToReadableText(obj) {
+    const lines = ["Design report summary."];
+    
+    if (obj.objects && Array.isArray(obj.objects)) {
+        lines.push(`This design contains ${obj.objects.length} elements.`);
+        
+        obj.objects.forEach((item, index) => {
+            const type = item.type || 'item';
+            const material = item.material || 'unknown material';
+            const color = item.color_hex || 'standard color';
+            
+            let dimStr = "";
+            if (item.dimensions) {
+                const d = item.dimensions;
+                dimStr = `with dimensions: width ${d.width || 0}, length ${d.length || 0}, height ${d.height || 0}.`;
+            }
+            
+            lines.push(`Element ${index + 1} is a ${type}, made of ${material}, ${dimStr}`);
+        });
+    }
+
+    if (obj.features) {
+        lines.push("Key features include: " + Object.keys(obj.features).join(", ") + ".");
+    }
+
+    return lines.join(" ");
+}
+
+/**
+ * Handles TTS generation and playback
+ */
+async function handleListenReport(specJson, btn) {
+    const originalText = btn.innerHTML;
+    const text = jsonToReadableText(specJson);
+    
+    btn.innerHTML = '<span class="spinner"></span> Synthesizing...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/tts`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': state.authToken ? `Bearer ${state.authToken}` : ''
+            },
+            body: JSON.stringify({ text })
+        });
+
+        if (!response.ok) throw new Error('Failed to generate audio');
+
+        const blob = await response.blob();
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+        
+        btn.innerHTML = '⏸ Playing...';
+        btn.disabled = false;
+        
+        audio.onended = () => {
+            btn.innerHTML = originalText;
+            URL.revokeObjectURL(audioUrl);
+        };
+
+        btn.onclick = () => {
+            if (audio.paused) {
+                audio.play();
+                btn.innerHTML = '⏸ Playing...';
+            } else {
+                audio.pause();
+                btn.innerHTML = '▶ Resume';
+            }
+        };
+
+        audio.play();
+    } catch (e) {
+        console.error("TTS Error:", e);
+        btn.innerHTML = "❌ Error";
+        setTimeout(() => { btn.innerHTML = originalText; btn.disabled = false; }, 3000);
+    }
 }
 
 function updateDashboard() {
@@ -397,28 +491,48 @@ async function handleSignup(e) {
 function setupAuthToggle() {
     const toggleLogin = document.getElementById('toggle-login');
     const toggleSignup = document.getElementById('toggle-signup');
+    const linkLogin = document.getElementById('link-login');
+    const linkSignup = document.getElementById('link-signup');
+    
     const loginForm = document.getElementById('login-form');
     const signupForm = document.getElementById('signup-form');
     const errorEl = document.getElementById('login-error');
     const successEl = document.getElementById('login-success');
 
-    toggleLogin.addEventListener('click', () => {
+    const showLogin = () => {
         toggleLogin.classList.add('active');
         toggleSignup.classList.remove('active');
         loginForm.classList.remove('hidden');
         signupForm.classList.add('hidden');
         if (errorEl) errorEl.classList.remove('show');
         if (successEl) successEl.classList.remove('show');
-    });
+    };
 
-    toggleSignup.addEventListener('click', () => {
+    const showSignup = () => {
         toggleSignup.classList.add('active');
         toggleLogin.classList.remove('active');
         signupForm.classList.remove('hidden');
         loginForm.classList.add('hidden');
         if (errorEl) errorEl.classList.remove('show');
         if (successEl) successEl.classList.remove('show');
-    });
+    };
+
+    toggleLogin.addEventListener('click', showLogin);
+    toggleSignup.addEventListener('click', showSignup);
+    
+    if (linkLogin) {
+        linkLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            showLogin();
+        });
+    }
+    
+    if (linkSignup) {
+        linkSignup.addEventListener('click', (e) => {
+            e.preventDefault();
+            showSignup();
+        });
+    }
 }
 
 async function handleQuickGenerate() {
@@ -842,9 +956,23 @@ function renderHistoryGrid(specs) {
                 if (resultEl) {
                     resultEl.classList.remove('hidden', 'error');
                     resultEl.classList.add('success');
+                    const specJson = data.spec_json || data;
                     resultEl.innerHTML = `
-                        <div class="result-header success"><span>📄</span> Spec: ${sid}</div>
-                        <div class="json-viewer">${formatJSON(data.spec_json || data)}</div>`;
+                        <div class="result-header success">
+                            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                <span>📄 Spec: ${sid}</span>
+                                <button id="tts-history-btn" class="btn btn-secondary btn-sm" style="background: rgba(2, 114, 194, 0.1); border: 1px solid var(--primary);">
+                                    🔊 Listen to Report
+                                </button>
+                            </div>
+                        </div>
+                        <div class="json-viewer">${formatJSON(specJson)}</div>`;
+                    
+                    const ttsBtn = document.getElementById('tts-history-btn');
+                    if (ttsBtn) {
+                        ttsBtn.addEventListener('click', () => handleListenReport(specJson, ttsBtn));
+                    }
+                    
                     resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             } catch (e) {
@@ -859,10 +987,19 @@ function renderHistoryGrid(specs) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
+    // Setup login and signup forms immediately for responsiveness
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+    
+    if (loginForm) loginForm.addEventListener('submit', handleLogin);
+    if (signupForm) signupForm.addEventListener('submit', handleSignup);
+    
+    setupAuthToggle();
+    setupThemeToggle();
+    setupTabs();
+
     // Check API health on load
     checkAPIHealth();
-
-    setupThemeToggle();
 
     const isAuthenticated = await checkAuth();
     if (isAuthenticated) {
@@ -871,14 +1008,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('user-name').textContent = state.user;
         loadHistory(); // Load history for returning users
     }
-
-    // Setup login and signup forms
-    document.getElementById('login-form').addEventListener('submit', handleLogin);
-    document.getElementById('signup-form').addEventListener('submit', handleSignup);
-    setupAuthToggle();
-
-    // Setup tabs
-    setupTabs();
 
     // Setup logout
     document.getElementById('logout-btn').addEventListener('click', () => {
