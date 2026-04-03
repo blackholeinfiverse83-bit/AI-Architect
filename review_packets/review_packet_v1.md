@@ -12,54 +12,45 @@ The system starts by launching the FastAPI backend on port 8000 for AI processin
 
 ---
 
-## 2. CORE EXECUTION FLOW (MAX 3 FILES ONLY)
+## 2. CORE EXECUTION FLOW (MAX 4 FILES)
 
 **File 1:**
 Path: `prompt/frontend-webapp/app.js`
-Manages the frontend state, API communication for design generation, and 3D model rendering logic.
+Manages frontend state, API communication for design generation, and **Recent Designs history retrieval**.
 
 **File 2:**
 Path: `prompt/Design-Engine-/backend/app/main.py`
-Acts as the main FastAPI gateway, handling routing for generation, health checks, and system orchestration.
+FastAPI gateway directing requests to generation and history routers.
 
 **File 3:**
-Path: `prompt/Design-Engine-/backend/app/geometry_generator_real.py`
-Contains the core algorithmic logic for processing architectural prompts and generating valid 3D geometry outputs.
+Path: `prompt/Design-Engine-/backend/app/api/history.py`
+Fixed to properly query MongoDB for user-specific design iterations and specs.
+
+**File 4:**
+Path: `prompt/Design-Engine-/backend/app/api/generate.py`
+Persists new designs to MongoDB and triggers history refresh.
 
 ---
 
 ## 3. LIVE FLOW (REAL EXECUTION)
 
-**User action:**
-User enters a prompt (e.g., "modern minimalist villa with a garden") in the dashboard and clicks "Generate Design".
+**User action (Generation):**
+User enters a prompt in the dashboard and clicks "Generate Design".
+*Flow:* Frontend (app.js) → POST `/api/v1/generate` → Backend → MongoDB Save → UI Update.
 
-**System flow:**
-Frontend (app.js) → API (POST /api/v1/generate) → Backend (main.py) → Processing (geometry_generator_real.py) → Response (JSON)
-
-**REAL RESPONSE JSON:**
-```json
-{
-  "message": "Geometry uploaded successfully",
-  "upload_id": "geometry_1767769824_spec_cb54d186",
-  "spec_id": "spec_cb54d186",
-  "filename": "test_geometry.stl",
-  "stored_filename": "spec_cb54d186_1767769824.stl",
-  "signed_url": "https://dntmhjlbxirtgslzwbui.supabase.co/storage/v1/object/public/geometry/spec_cb54d186.glb",
-  "file_type": "stl",
-  "file_size": 68,
-  "user": "admin",
-  "stored_in_database": true,
-  "stored_locally": "data/geometry_outputs\\spec_cb54d186_1767769824.stl",
-  "metadata_file": "data/geometry_outputs\\geometry_1767769824_spec_cb54d186_metadata.json"
-}
-```
+**User action (History):**
+User opens the dashboard or clicks "Refresh" on Recent Designs.
+*Flow:* Frontend (app.js) → GET `/api/v1/history` → Backend (history.py) → MongoDB Query → UI Grid Render.
 
 ---
 
 ## 4. WHAT WAS BUILT IN THIS TASK
 
-• **Added:** `/review_packets/review_packet_v1.md`
-• **Modified:** `prompt/frontend-webapp/index.html`, `prompt/frontend-webapp/app.js`, `prompt/frontend-webapp/styles.css` (UI modernization, expanded prompt area, removed budget field, reordered 3D editor).
+• **Added:** Recent Designs UI grid with auto-refresh on generation.
+• **Modified:** `prompt/Design-Engine-/backend/app/api/history.py` (Fixed broken SQLAlchemy mock logic to use real MongoDB Motor queries).
+• **Modified:** `prompt/frontend-webapp/app.js` (Implemented `loadHistory`, `renderHistoryGrid`, and removed all legacy video generation code).
+• **Modified:** `prompt/frontend-webapp/index.html` (Added Recent Designs section, removed Video Lab tab).
+• **Removed:** Entire Video Generation feature and associated API health checks/UI elements.
 • **Not touched:** `prompt/Design-Engine-/backend/app/nlp/*` (NLP processing remains unchanged).
 
 ---
