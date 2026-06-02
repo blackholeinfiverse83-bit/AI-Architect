@@ -37,6 +37,7 @@ from app.api import (
     reports,
     rl,
     switch,
+    tts,
     vr,
     workflow_consolidation,
 )
@@ -163,14 +164,16 @@ cors_origins = list(settings.CORS_ORIGINS or [])
 if not cors_origins:
     cors_origins = [
         "http://localhost:3000",
+        "http://127.0.0.1:3000",
         "http://localhost:3001",
+        "http://127.0.0.1:3001",
         "https://ai-architect-gray.vercel.app"
     ]
 if "*" in cors_origins and settings.CORS_CREDENTIALS:
     logger.warning("CORS wildcard '*' removed because credentials are enabled")
     cors_origins = [origin for origin in cors_origins if origin != "*"]
     if not cors_origins:
-        cors_origins = ["http://localhost:3000"]
+        cors_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -242,6 +245,7 @@ app.include_router(monitoring_system.router, include_in_schema=False)
 app.include_router(data_privacy.router, prefix="/api/v1", tags=["Data Privacy"], include_in_schema=False)
 app.include_router(data_audit.router, tags=["Data Audit"], include_in_schema=False)
 app.include_router(generate.router, prefix="/api/v1", tags=["Design Generation"])
+app.include_router(tts.router, prefix="/api/v1", tags=["Text-To-Speech"])
 app.include_router(evaluate.router, prefix="/api/v1", tags=["Design Evaluation"], include_in_schema=False)
 app.include_router(iterate.router, prefix="/api/v1", tags=["Design Iteration"], include_in_schema=False)
 app.include_router(switch.router, include_in_schema=False)
