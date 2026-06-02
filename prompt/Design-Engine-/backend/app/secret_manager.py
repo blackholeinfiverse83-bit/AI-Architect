@@ -64,6 +64,7 @@ def load_secrets_from_manager():
             secret_names = [
                 "DATABASE_URL",
                 "MONGODB_URL",
+                "JWT_SECRET_KEY",
                 "OPENAI_API_KEY",
                 "SENTRY_DSN",
                 "ENCRYPTION_KEY",

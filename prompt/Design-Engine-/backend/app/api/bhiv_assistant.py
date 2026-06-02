@@ -13,7 +13,7 @@ import httpx
 from app.api.monitoring_system import log_error, log_info, track_performance
 from app.config import settings
 from app.database_mongodb import get_database
-from app.lm_adapter import run_local_lm
+from app.platform_adapter import run_prompt
 from app.utils import create_new_spec_id
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
@@ -223,44 +223,34 @@ async def call_rl_agent(
 
 
 async def call_geometry_agent(spec_json: Dict[str, Any], request_id: str, auth_token: str = None) -> AgentResult:
-    """Call geometry generation agent (.GLB file generation)"""
+    """
+    Phase 3+4: Geometry generation via geometry_generator_real + Bucket upload.
+    Does NOT call /api/v1/geometry/generate (blocked).
+    Does NOT produce local file paths or placeholder URLs.
+    Fails hard if geometry or Bucket upload fails.
+    """
     start = time.time()
     agent_name = "geometry_agent"
 
     try:
-        logger.info(f"[{request_id}] Calling geometry generation agent")
+        logger.info(f"[{request_id}] Generating geometry via geometry_generator_real")
+        from app.geometry_generator_real import generate_real_glb
+        from app.storage import upload_to_bucket
 
-        # Prepare headers with authentication
-        headers = {"Content-Type": "application/json"}
-        if auth_token:
-            headers["Authorization"] = f"Bearer {auth_token}"
+        glb_bytes = generate_real_glb(spec_json)
+        if not glb_bytes or len(glb_bytes) < 100:
+            raise RuntimeError("generate_real_glb returned empty output")
 
-        # Use the new geometry generator API
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            geometry_request = {"spec_json": spec_json, "request_id": request_id, "format": "glb"}
+        geometry_url = await upload_to_bucket("geometry", f"{request_id}.glb", glb_bytes, "model/gltf-binary")
 
-            try:
-                response = await client.post(
-                    "http://localhost:8000/api/v1/geometry/generate", json=geometry_request, headers=headers
-                )
-                response.raise_for_status()
-                result_data = response.json()
-
-                logger.info(f"[{request_id}] Geometry generated: {result_data.get('file_size_bytes')} bytes")
-
-            except Exception as e:
-                logger.warning(f"Geometry API failed: {e}, using fallback")
-                result_data = {
-                    "geometry_url": f"/api/v1/geometry/download/{request_id}.glb",
-                    "format": "glb",
-                    "file_size_bytes": 0,
-                    "generation_time_ms": 100,
-                    "note": "Fallback geometry placeholder",
-                }
-
+        result_data = {
+            "geometry_url": geometry_url,
+            "format": "glb",
+            "file_size_bytes": len(glb_bytes),
+            "generation_time_ms": int((time.time() - start) * 1000),
+        }
+        logger.info(f"[{request_id}] Geometry stored in Bucket: {geometry_url}")
         duration_ms = int((time.time() - start) * 1000)
-        logger.info(f"[{request_id}] Geometry agent completed in {duration_ms}ms")
-
         return AgentResult(agent_name=agent_name, success=True, duration_ms=duration_ms, data=result_data)
 
     except Exception as e:
@@ -335,23 +325,21 @@ async def bhiv_prompt(req: BHIVPromptRequest, request: Request, background_tasks
     logger.info(f"[{request_id}] BHIV Assistant request started for user {req.user_id}")
     log_info("bhiv_request_started", request_id=request_id, user_id=req.user_id, city=req.city)
 
-    # Step 1: Generate Design Spec using LM
+    # Step 1: Generate Design Spec via platform_adapter → Prompt Runner
     try:
-        lm_params = {
-            "user_id": req.user_id,
-            "city": req.city,
-            "design_type": req.design_type,
-            "budget": req.budget,
-            "area_sqft": req.area_sqft,
-        }
+        logger.info(f"[{request_id}] Calling platform_adapter for design generation")
+        platform_result = run_prompt(req.prompt)
 
-        logger.info(f"[{request_id}] Calling LM for design generation")
-        lm_result = run_local_lm(req.prompt, lm_params)
+        if platform_result.get("status") != "success":
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Prompt Runner failed: {platform_result.get('error')}",
+            )
 
-        spec_json = lm_result["spec_json"]
-        lm_provider = lm_result.get("provider", "local")
+        spec_json = platform_result.get("instruction", {})
+        lm_provider = "platform_adapter"
 
-        logger.info(f"[{request_id}] Design spec generated using {lm_provider}")
+        logger.info(f"[{request_id}] Design spec generated via platform_adapter")
 
     except Exception as e:
         logger.exception(f"[{request_id}] LM generation failed")

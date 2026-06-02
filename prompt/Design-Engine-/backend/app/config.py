@@ -3,7 +3,7 @@ MongoDB Configuration - Complete Application Configuration
 Manages all environment variables, validation, and settings
 """
 import os
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from pydantic import Field, validator
 from pydantic_settings import BaseSettings
@@ -24,14 +24,8 @@ class Settings(BaseSettings):
     PORT: int = Field(default=8000, description="Server port")
     RELOAD: bool = Field(default=False, description="Auto-reload on code changes")
 
-    CORS_ORIGINS: Union[str, List[str]] = Field(
-        default=[
-            "http://localhost:3000",
-            "http://localhost:3001",
-            "http://127.0.0.1:3000",
-            "https://bhiv-design-engine-frontend.onrender.com",
-        ],
-        description="Allowed CORS origins",
+    CORS_ORIGINS: List[str] = Field(
+        default=["http://localhost:3000", "http://localhost:3001"], description="Allowed CORS origins"
     )
     CORS_CREDENTIALS: bool = True
     CORS_METHODS: List[str] = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
@@ -77,6 +71,38 @@ class Settings(BaseSettings):
 
     MAX_FILE_SIZE: int = Field(default=100 * 1024 * 1024, description="Max file size in bytes (100MB)")
     STORAGE_CHUNK_SIZE: int = Field(default=255 * 1024, description="GridFS chunk size in bytes")
+
+    # ============================================================================
+    # JWT AUTHENTICATION
+    # ============================================================================
+    JWT_SECRET_KEY: str = Field(
+        default="change-me-jwt-secret",
+        min_length=16,
+        description="JWT secret key",
+    )
+    JWT_SECRET: str = Field(
+        default="change-me-jwt-secret",
+        min_length=16,
+        description="JWT secret key (alias)",
+    )
+    JWT_ALGORITHM: str = Field(default="HS256", description="JWT algorithm")
+    JWT_EXPIRATION_HOURS: int = Field(default=24, description="JWT token lifetime in hours")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=1440, description="Access token lifetime (24h)")
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=30, description="Refresh token lifetime")
+
+    @validator("JWT_SECRET_KEY")
+    def validate_jwt_secret(cls, v):
+        """Ensure JWT secret is strong enough"""
+        if len(v) < 16:
+            raise ValueError("JWT_SECRET_KEY must be at least 16 characters long")
+        return v
+
+    @validator("JWT_SECRET")
+    def validate_jwt_secret_alias(cls, v):
+        """Ensure JWT secret alias is strong enough"""
+        if len(v) < 16:
+            raise ValueError("JWT_SECRET must be at least 16 characters long")
+        return v
 
     @validator("CORS_ORIGINS", pre=True)
     def parse_cors_origins(cls, v):
@@ -206,6 +232,22 @@ class Settings(BaseSettings):
     RL_LEARNING_RATE: float = Field(default=0.001, description="RL learning rate")
 
     # ============================================================================
+    # BUCKET STORAGE SERVICE
+    # ============================================================================
+    BUCKET_URL: str = Field(
+        default="https://bhiv-bucket.onrender.com",
+        description="Live Bucket storage service URL (Siddhesh)",
+    )
+
+    # ============================================================================
+    # CORE INTERNAL TOKEN — blocks direct /generate calls
+    # ============================================================================
+    CORE_INTERNAL_TOKEN: str = Field(
+        default="bhiv-core-internal-token-change-in-prod",
+        description="Secret token that Core injects; /generate rejects requests without it",
+    )
+
+    # ============================================================================
     # SECURITY CONFIGURATION
     # ============================================================================
     ENCRYPTION_KEY: Optional[str] = Field(default=None, description="Encryption key material")
@@ -228,6 +270,9 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+# Keep legacy alias aligned with primary secret.
+if not settings.JWT_SECRET or settings.JWT_SECRET == "change-me-jwt-secret":
+    settings.JWT_SECRET = settings.JWT_SECRET_KEY
 
 
 def validate_settings():
@@ -241,6 +286,9 @@ def validate_settings():
     if not settings.MONGODB_DATABASE:
         errors.append("MONGODB_DATABASE is required")
 
+    if not settings.JWT_SECRET_KEY or len(settings.JWT_SECRET_KEY) < 16:
+        errors.append("JWT_SECRET_KEY must be at least 16 characters long")
+
     if settings.ENCRYPTION_KEY and len(settings.ENCRYPTION_KEY) < 16:
         warnings.append("ENCRYPTION_KEY should be at least 16 characters")
 
@@ -248,6 +296,9 @@ def validate_settings():
         errors.append("DEMO_PASSWORD must be set when DEMO_MODE=true")
 
     if settings.ENVIRONMENT == "production":
+        insecure_jwt_defaults = {"change-me-jwt-secret", "bhiv-jwt-secret-2024-super-secure-key-for-production"}
+        if settings.JWT_SECRET_KEY in insecure_jwt_defaults:
+            errors.append("JWT_SECRET_KEY must be overridden in production")
         if settings.MONGODB_URL.startswith("mongodb://localhost"):
             errors.append("MONGODB_URL must be overridden in production")
         if settings.DEMO_MODE:

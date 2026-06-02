@@ -1,7 +1,9 @@
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
+from app.config import settings
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 # Application start time for uptime calculation
@@ -19,16 +21,33 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
+# JWT utilities
+def create_access_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(hours=settings.JWT_EXPIRATION_HOURS)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def verify_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        return payload
+    except JWTError:
+        return None
+
+
 # Logging setup
 def setup_logging():
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            logging.StreamHandler(),
+            logging.StreamHandler(),  # Console output
         ],
-        force=True,
+        force=True,  # Override any existing configuration
     )
+    # Ensure uvicorn logs are visible
     logging.getLogger("uvicorn.access").setLevel(logging.INFO)
     logging.getLogger("uvicorn").setLevel(logging.INFO)
 
@@ -37,6 +56,7 @@ def setup_logging():
 def create_new_spec_id() -> str:
     """Generate unique spec ID"""
     import uuid
+
     return f"spec_{uuid.uuid4().hex[:8]}"
 
 
@@ -49,6 +69,7 @@ def generate_glb_from_spec(spec_json: dict) -> bytes:
 def create_eval_id() -> str:
     """Generate unique evaluation ID"""
     import uuid
+
     return f"eval_{uuid.uuid4().hex[:8]}"
 
 
@@ -60,6 +81,7 @@ def create_new_eval_id() -> str:
 def create_iter_id() -> str:
     """Generate unique iteration ID"""
     import uuid
+
     return f"iter_{uuid.uuid4().hex[:8]}"
 
 

@@ -19,6 +19,7 @@ from app.api import (
     bhiv_assistant,
     bhiv_integrated,
     compliance,
+    core_entry,
     data_audit,
     data_privacy,
     downloads,
@@ -49,7 +50,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer
-from fastapi.staticfiles import StaticFiles
+from fastapi.staticfiles import StaticFiles  # noqa: F401 — kept for potential future use
 from prometheus_fastapi_instrumentator import Instrumentator
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
@@ -105,7 +106,7 @@ async def startup_event():
     print("API Docs: http://0.0.0.0:8000/docs")
     print("Health Check: http://0.0.0.0:8000/health")
     print("Database: MongoDB (attempting connection...)")
-    print("Storage: MongoDB GridFS")
+    print("Storage: Bucket (https://bhiv-bucket.onrender.com)")
     print("Request logging is ENABLED")
     print("=" * 70 + "\n")
 
@@ -114,7 +115,7 @@ async def startup_event():
         await connect_to_mongo(settings.MONGODB_URL, settings.MONGODB_DATABASE)
         logger.info("MongoDB connected successfully")
         logger.info(f"Database: {settings.MONGODB_DATABASE}")
-        logger.info("GridFS Buckets: files, previews, geometry, compliance")
+        logger.info("Storage: Bucket service — all artifacts via https://bhiv-bucket.onrender.com")
     except Exception as e:
         logger.warning(f"MongoDB connection failed: {e}")
         logger.warning("Server will start without database (some features disabled)")
@@ -184,6 +185,11 @@ app.add_middleware(
 )
 
 
+# Phase 3: /api/v1/generate is a hard-blocked route (always 403).
+# The only public entry point is /api/v1/core/generate via core_entry.py.
+# No middleware token check needed — the route handler itself raises 403.
+
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
@@ -204,31 +210,10 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-try:
-    import os
-
-    geometry_dir = os.path.join(os.path.dirname(__file__), "..", "data", "geometry_outputs")
-    geometry_dir = os.path.abspath(geometry_dir)
-
-    if os.path.exists(geometry_dir):
-        app.mount("/static/geometry", StaticFiles(directory=geometry_dir), name="geometry")
-        logger.info(f"Static geometry files mounted at /static/geometry -> {geometry_dir}")
-    else:
-        os.makedirs(geometry_dir, exist_ok=True)
-        app.mount("/static/geometry", StaticFiles(directory=geometry_dir), name="geometry")
-        logger.info(f"Created and mounted geometry directory: {geometry_dir}")
-
-    export_dir = os.path.join(os.path.dirname(__file__), "..", "data", "export_outputs")
-    export_dir = os.path.abspath(export_dir)
-    if os.path.exists(export_dir):
-        app.mount("/static/exports", StaticFiles(directory=export_dir), name="exports")
-        logger.info(f"Static export files mounted at /static/exports -> {export_dir}")
-    else:
-        os.makedirs(export_dir, exist_ok=True)
-        app.mount("/static/exports", StaticFiles(directory=export_dir), name="exports")
-        logger.info(f"Created and mounted export directory: {export_dir}")
-except Exception as e:
-    logger.warning(f"Static files mount failed: {e}")
+# Phase 1 / Phase 4: Local static file serving REMOVED.
+# All geometry and export outputs are stored in MongoDB GridFS bucket.
+# URLs are served via /api/v1/files/<bucket>/<file_id> only.
+# /static/geometry and /static/exports are NOT mounted.
 
 
 @app.get("/health", tags=["Public Health"])
@@ -246,6 +231,7 @@ app.include_router(data_privacy.router, prefix="/api/v1", tags=["Data Privacy"],
 app.include_router(data_audit.router, tags=["Data Audit"], include_in_schema=False)
 app.include_router(generate.router, prefix="/api/v1", tags=["Design Generation"])
 app.include_router(tts.router, prefix="/api/v1", tags=["Text-To-Speech"])
+app.include_router(core_entry.router, prefix="/api/v1", tags=["Core Entry"])
 app.include_router(evaluate.router, prefix="/api/v1", tags=["Design Evaluation"], include_in_schema=False)
 app.include_router(iterate.router, prefix="/api/v1", tags=["Design Iteration"], include_in_schema=False)
 app.include_router(switch.router, include_in_schema=False)
