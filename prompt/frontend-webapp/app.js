@@ -18,6 +18,7 @@ const state = {
     lastPreviewUrl: null,
     lastCost: 0,
     recentDesigns: [],
+    totalDesigns: 0,
     apiConnected: false,
     uploadedGLBFile: null  // Store uploaded GLB file info
 };
@@ -274,6 +275,12 @@ function displayDesignResult(containerId, data) {
         <div class="result-header success">
             <span>✅</span> Design Generated Successfully
         </div>
+        ${previewUrl ? `
+        <div class="warning-alert" style="margin-bottom: 20px; padding: 12px 16px; background-color: rgba(210, 153, 34, 0.1); border-left: 4px solid var(--accent); border-radius: 6px; color: var(--text-primary); font-size: 14px; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 18px;">⚠️</span>
+            <span><strong>Notice:</strong> 3D rendering models are not permanently stored. Please download and save your model locally if you wish to keep it.</span>
+        </div>
+        ` : ''}
         <div class="info-grid">
             <div class="info-item">
                 <div class="info-label">Spec ID</div>
@@ -295,7 +302,7 @@ function displayDesignResult(containerId, data) {
 }
 
 function updateDashboard() {
-    document.getElementById('dashboard-designs').textContent = state.recentDesigns.length;
+    document.getElementById('dashboard-designs').textContent = state.totalDesigns || 0;
 
     const specId = state.lastSpecId || 'None';
     document.getElementById('dashboard-last-spec').textContent =
@@ -777,13 +784,22 @@ async function loadHistory() {
         const specs = data.specs || [];
 
         // Update dashboard total count with real DB total
-        const totalEl = document.getElementById('dashboard-designs');
-        if (totalEl) totalEl.textContent = data.total_specs || specs.length;
+        state.totalDesigns = data.total_specs || specs.length;
 
         if (specs.length === 0) {
             empty?.classList.remove('hidden');
             return;
         }
+
+        // Set state from the latest spec in history
+        const latestSpec = specs[0];
+        state.lastSpecId = latestSpec.spec_id;
+        state.lastCost = latestSpec.estimated_cost || 0;
+        state.lastPreviewUrl = latestSpec.preview_url || null;
+        state.lastSpecJson = latestSpec.spec_json || latestSpec;
+
+        updateDashboard();
+        updateInputValues();
 
         renderHistoryGrid(specs);
     } catch (err) {
@@ -833,6 +849,17 @@ function renderHistoryGrid(specs) {
     grid.querySelectorAll('.history-view-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const sid = btn.getAttribute('data-spec-id');
+            
+            // Find and update state from the selected history item
+            const selectedSpec = specs.find(s => s.spec_id === sid);
+            if (selectedSpec) {
+                state.lastSpecId = selectedSpec.spec_id;
+                state.lastCost = selectedSpec.estimated_cost || 0;
+                state.lastPreviewUrl = selectedSpec.preview_url || null;
+                updateDashboard();
+                updateInputValues();
+            }
+
             btn.textContent = 'Loading…';
             btn.disabled = true;
             try {
@@ -892,7 +919,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Setup all button handlers (only Dashboard and Geometry)
     document.getElementById('quick-generate-btn')?.addEventListener('click', handleQuickGenerate);
-    document.getElementById('load-preview-btn')?.addEventListener('click', loadPreviewFromLastDesign);
     document.getElementById('clear-preview-btn')?.addEventListener('click', clearPreview);
     document.getElementById('refresh-history-btn')?.addEventListener('click', loadHistory);
 
