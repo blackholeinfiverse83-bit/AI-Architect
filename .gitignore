@@ -29,3 +29,5 @@ Thumbs.db
 # Windows reserved name
 nul
 prompt/nul
+.vercel
+.env*

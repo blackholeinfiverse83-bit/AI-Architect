@@ -264,15 +264,20 @@ function showResult(containerId, data, isError = false) {
 
 function resolveBinaryFileDownloadUrl(rawUrl, bucketName = 'geometry') {
     if (!rawUrl) return null;
-    if (rawUrl.includes('/api/v1/files/')) {
-        return rawUrl.startsWith('http') ? rawUrl : `${API_BASE_URL}${rawUrl}`;
+    let normalizedUrl = rawUrl
+        .replace(/^https?:\/\/localhost:8000/i, '')
+        .replace(/^https?:\/\/127\.0\.0\.1:8000/i, '');
+
+    if (normalizedUrl.includes('/api/v1/files/')) {
+        const filePath = normalizedUrl.substring(normalizedUrl.indexOf('/api/v1/files/'));
+        return `${API_BASE_URL}${filePath}`;
     }
-    const cleanUrl = rawUrl.replace(/\/+$/, '');
+    const cleanUrl = normalizedUrl.replace(/\/+$/, '');
     const artifactId = cleanUrl.split('/').pop();
     if (artifactId && artifactId.length > 5) {
         return `${API_BASE_URL}/api/v1/files/${bucketName}/${artifactId}`;
     }
-    return rawUrl.startsWith('http') ? rawUrl : `${API_BASE_URL}${rawUrl}`;
+    return normalizedUrl.startsWith('http') ? normalizedUrl : `${API_BASE_URL}${normalizedUrl}`;
 }
 
 function displayDesignResult(containerId, data) {
