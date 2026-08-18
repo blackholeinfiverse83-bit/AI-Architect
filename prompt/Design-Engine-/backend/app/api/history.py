@@ -1,138 +1,118 @@
+import logging
+from datetime import datetime, timezone
 from typing import Optional
 
-from app.auth_mongodb import get_current_user, get_db
+from app.auth_mongodb import get_current_user
+from app.database_mongodb import get_database
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/history/{spec_id}")
 async def get_spec_history(
     spec_id: str,
     current_user: str = Depends(get_current_user),
-    db=Depends(get_db),
-    limit: Optional[int] = Query(50, description="Maximum number of iterations to return"),
+    limit: Optional[int] = Query(50, description="Maximum number of items"),
 ):
-    """Get complete history for a specific spec including iterations and evaluations"""
+    """Get complete history for a specific spec from MongoDB Atlas"""
+    try:
+        db = get_database()
+        spec = await db.specs.find_one({"$or": [{"_id": spec_id}, {"spec_id": spec_id}]})
+        if not spec:
+            raise HTTPException(status_code=404, detail="Spec not found")
 
-    # Get the spec
-    spec = await db.specs.find_one({"_id": spec_id})
-    if not spec:
-        raise HTTPException(status_code=404, detail="Spec not found")
+        spec["_id"] = str(spec.get("_id", spec_id))
 
-    # Get iterations
-    iterations = (
-        await db.iterations.find({"spec_id": spec_id})
-        .sort("created_at", -1)
-        .limit(limit)
-        .to_list(None)
-    )
+        iterations = await db.iterations.find({"spec_id": spec_id}).limit(limit or 50).to_list(length=limit or 50)
+        evaluations = await db.evaluations.find({"spec_id": spec_id}).limit(limit or 50).to_list(length=limit or 50)
 
-    # Get evaluations
-    evaluations = (
-        await db.evaluations.find({"spec_id": spec_id})
-        .sort("created_at", -1)
-        .limit(limit)
-        .to_list(None)
-    )
+        for item in iterations:
+            item["_id"] = str(item["_id"])
+        for item in evaluations:
+            item["_id"] = str(item["_id"])
 
-    return {
-        "spec_id": spec_id,
-        "spec": {
-            "spec_id": spec.get("_id"),
-            "user_id": spec.get("user_id"),
-            "project_id": spec.get("project_id"),
-            "prompt": spec.get("prompt"),
-            "spec_json": spec.get("spec_json"),
-            "version": spec.get("version"),
-            "created_at": spec.get("created_at"),
-            "updated_at": spec.get("updated_at"),
-        },
-        "iterations": [
-            {
-                "iter_id": iter.get("_id"),
-                "query": iter.get("query"),
-                "diff": iter.get("diff"),
-                "spec_json": iter.get("spec_json"),
-                "timestamp": iter.get("created_at"),
-            }
-            for iter in iterations
-        ],
-        "evaluations": [
-            {
-                "eval_id": eval.get("_id"),
-                "user_id": eval.get("user_id"),
-                "rating": eval.get("rating"),
-                "notes": eval.get("notes"),
-                "timestamp": eval.get("created_at"),
-            }
-            for eval in evaluations
-        ],
-        "total_iterations": len(iterations),
-        "total_evaluations": len(evaluations),
-    }
+        return {
+            "spec_id": spec_id,
+            "spec": spec,
+            "iterations": iterations,
+            "evaluations": evaluations,
+            "total_iterations": len(iterations),
+            "total_evaluations": len(evaluations),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[HISTORY] Error fetching spec history {spec_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/history")
 async def get_user_history(
     current_user: str = Depends(get_current_user),
-    db=Depends(get_db),
     limit: Optional[int] = Query(20, description="Maximum number of specs to return"),
     project_id: Optional[str] = Query(None, description="Filter by project ID"),
+    all_users: bool = Query(False, description="Whether to include designs from all users"),
 ):
-    """Get complete history with data integrity for all specs"""
+    """Get complete history for user specs from MongoDB Atlas"""
+    try:
+        db = get_database()
+        filter_doc = {}
+        if not all_users:
+            filter_doc["$or"] = [
+                {"user_id": current_user},
+                {"user_id": f"user_{current_user}"},
+                {"user_id": {"$regex": current_user, "$options": "i"}},
+            ]
+        if project_id:
+            filter_doc["project_id"] = project_id
 
-    search_filter = {"user_id": current_user}
-    if project_id:
-        search_filter["project_id"] = project_id
+        cursor = db.specs.find(filter_doc).sort("created_at", -1).limit(limit or 20)
+        specs_raw = await cursor.to_list(length=limit or 20)
 
-    specs = await db.specs.find(search_filter).sort("updated_at", -1).limit(limit).to_list(None)
 
-    specs_data = []
-    for spec in specs:
-        spec_id = spec.get("_id")
-        # Get counts for related data
-        iterations_count = await db.iterations.count_documents({"spec_id": spec_id})
-        evaluations_count = await db.evaluations.count_documents({"spec_id": spec_id})
-        compliance_count = await db.compliance_checks.count_documents({"spec_id": spec_id})
+        specs_data = []
+        for s in specs_raw:
+            sid = str(s.get("spec_id") or s.get("_id"))
+            specs_data.append(
+                {
+                    "spec_id": sid,
+                    "project_id": s.get("project_id"),
+                    "prompt": s.get("prompt", ""),
+                    "city": s.get("city", "Mumbai"),
+                    "design_type": s.get("design_type", "apartment"),
+                    "version": s.get("version", 1),
+                    "status": s.get("status", "completed"),
+                    "compliance_status": s.get("compliance_status", "passed"),
+                    "estimated_cost": s.get("estimated_cost", 0),
+                    "currency": s.get("currency", "INR"),
+                    "preview_url": s.get("preview_url"),
+                    "geometry_url": s.get("glb_url") or s.get("preview_url"),
+                    "created_at": str(s.get("created_at", "")),
+                    "updated_at": str(s.get("updated_at", "")),
+                    "spec_json": s.get("spec_json", {}),
+                    "data_integrity": {
+                        "has_spec_json": s.get("spec_json") is not None,
+                        "has_preview": s.get("preview_url") is not None,
+                        "has_geometry": (s.get("glb_url") or s.get("preview_url")) is not None,
+                        "auditable": True,
+                    },
+                }
+            )
 
-        specs_data.append(
-            {
-                "spec_id": spec_id,
-                "project_id": spec.get("project_id"),
-                "prompt": spec.get("prompt"),
-                "city": spec.get("city"),
-                "design_type": spec.get("design_type"),
-                "version": spec.get("version"),
-                "status": spec.get("status"),
-                "compliance_status": spec.get("compliance_status"),
-                "estimated_cost": spec.get("estimated_cost"),
-                "currency": spec.get("currency", "INR"),
-                "preview_url": spec.get("preview_url"),
-                "geometry_url": spec.get("geometry_url"),
-                "created_at": spec.get("created_at").isoformat() if spec.get("created_at") else None,
-                "updated_at": spec.get("updated_at").isoformat() if spec.get("updated_at") else None,
-                "data_integrity": {
-                    "has_spec_json": spec.get("spec_json") is not None,
-                    "has_preview": spec.get("preview_url") is not None,
-                    "has_geometry": spec.get("geometry_url") is not None,
-                    "iterations_count": iterations_count,
-                    "evaluations_count": evaluations_count,
-                    "compliance_count": compliance_count,
-                    "auditable": True,
-                },
-            }
-        )
-
-    return {
-        "user_id": current_user,
-        "specs": specs_data,
-        "total_specs": len(specs),
-        "data_integrity_summary": {
-            "total_specs": len(specs),
-            "specs_with_json": sum(1 for s in specs if s.get("spec_json") is not None),
-            "specs_with_preview": sum(1 for s in specs if s.get("preview_url") is not None),
-            "specs_with_geometry": sum(1 for s in specs if s.get("geometry_url") is not None),
-            "all_auditable": True,
-        },
-    }
+        return {
+            "user_id": current_user,
+            "specs": specs_data,
+            "total_specs": len(specs_data),
+            "data_integrity_summary": {
+                "total_specs": len(specs_data),
+                "specs_with_json": sum(1 for s in specs_data if s["data_integrity"]["has_spec_json"]),
+                "specs_with_preview": sum(1 for s in specs_data if s["data_integrity"]["has_preview"]),
+                "specs_with_geometry": sum(1 for s in specs_data if s["data_integrity"]["has_geometry"]),
+                "all_auditable": True,
+            },
+        }
+    except Exception as e:
+        logger.error(f"[HISTORY] Error fetching user history: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

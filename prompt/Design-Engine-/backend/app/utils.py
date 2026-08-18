@@ -3,6 +3,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from app.config import settings
+from app.logging_config import setup_logging as _setup_logging  # noqa: F401 — re-exported
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -10,15 +11,17 @@ from passlib.context import CryptContext
 START_TIME = time.time()
 
 # Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
+
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return pwd_context.hash(password[:72] if password else "")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return pwd_context.verify(plain_password[:72] if plain_password else "", hashed_password)
+
 
 
 # JWT utilities
@@ -37,19 +40,9 @@ def verify_token(token: str) -> dict:
         return None
 
 
-# Logging setup
+# Logging setup — delegates to logging_config for JSON + file output
 def setup_logging():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.StreamHandler(),  # Console output
-        ],
-        force=True,  # Override any existing configuration
-    )
-    # Ensure uvicorn logs are visible
-    logging.getLogger("uvicorn.access").setLevel(logging.INFO)
-    logging.getLogger("uvicorn").setLevel(logging.INFO)
+    _setup_logging()
 
 
 # Spec utilities

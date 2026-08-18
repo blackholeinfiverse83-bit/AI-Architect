@@ -69,23 +69,24 @@ async function login(email, password) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.message || 'Login failed');
+            throw new Error(error.error || error.message || 'Login failed');
         }
 
         const data = await response.json();
-        const token = data.token;
-        const userName = data.user.name || data.user.email || email;
-        
+        const token = data.token || data.access_token;
+        const userName = (data.user && (data.user.name || data.user.email)) || email;
+
         state.authToken = token;
         state.user = userName;
         localStorage.setItem('authToken', token);
         localStorage.setItem('user', userName);
-        
+
         return data;
     } catch (error) {
         throw error;
     }
 }
+
 
 async function signup(email, password, name) {
     try {
@@ -101,23 +102,25 @@ async function signup(email, password, name) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.message || 'Signup failed');
+            throw new Error(error.error || error.message || 'Signup failed');
         }
 
         const data = await response.json();
-        const token = data.token;
-        const userName = data.user.name || data.user.email || email;
-        
+        const token = data.token || data.access_token;
+        const userName = (data.user && (data.user.name || data.user.email)) || name || email;
+
         state.authToken = token;
         state.user = userName;
         localStorage.setItem('authToken', token);
         localStorage.setItem('user', userName);
-        
+
         return data;
     } catch (error) {
         throw error;
     }
 }
+
+
 
 async function checkAuth() {
     const token = localStorage.getItem('authToken');
@@ -259,6 +262,19 @@ function showResult(containerId, data, isError = false) {
     }
 }
 
+function resolveBinaryFileDownloadUrl(rawUrl, bucketName = 'geometry') {
+    if (!rawUrl) return null;
+    if (rawUrl.includes('/api/v1/files/')) {
+        return rawUrl.startsWith('http') ? rawUrl : `${API_BASE_URL}${rawUrl}`;
+    }
+    const cleanUrl = rawUrl.replace(/\/+$/, '');
+    const artifactId = cleanUrl.split('/').pop();
+    if (artifactId && artifactId.length > 5) {
+        return `${API_BASE_URL}/api/v1/files/${bucketName}/${artifactId}`;
+    }
+    return rawUrl.startsWith('http') ? rawUrl : `${API_BASE_URL}${rawUrl}`;
+}
+
 function displayDesignResult(containerId, data) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -268,8 +284,17 @@ function displayDesignResult(containerId, data) {
 
     const specId = data.spec_id || 'N/A';
     const cost = data.estimated_cost || 0;
-    const previewUrl = data.preview_url || null;
+    const previewUrl = data.preview_url || data.glb_url || null;
     const specJson = data.spec_json || {};
+
+    const glbRaw = (data.download_urls && data.download_urls.glb) || data.glb_url || previewUrl || null;
+    const stlRaw = (data.download_urls && data.download_urls.stl) || data.stl_url || null;
+    const stepRaw = (data.download_urls && data.download_urls.step) || data.step_url || null;
+
+    const glbDownload = resolveBinaryFileDownloadUrl(glbRaw, 'geometry');
+    const stlDownload = resolveBinaryFileDownloadUrl(stlRaw, 'geometry');
+    const stepDownload = resolveBinaryFileDownloadUrl(stepRaw, 'geometry');
+
 
     container.innerHTML = `
         <div class="result-header success">
@@ -302,8 +327,50 @@ function displayDesignResult(containerId, data) {
             </div>
             ` : ''}
         </div>
+
+        <div class="download-section" style="margin: 20px 0; padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 8px;">
+            <h4 style="margin: 0 0 12px 0; color: var(--text-primary); font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                <span>📥</span> Render & Model Download Files:
+            </h4>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                ${glbDownload ? `
+                <a href="${glbDownload.startsWith('http') ? glbDownload : API_BASE_URL + glbDownload}" target="_blank" download class="btn btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+                    📦 Download 3D Model (.GLB)
+                </a>
+                ` : ''}
+                ${stlDownload ? `
+                <a href="${stlDownload.startsWith('http') ? stlDownload : API_BASE_URL + stlDownload}" target="_blank" download class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+                    📐 Download STL (.STL)
+                </a>
+                ` : ''}
+                ${stepDownload ? `
+                <a href="${stepDownload.startsWith('http') ? stepDownload : API_BASE_URL + stepDownload}" target="_blank" download class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+                    ⚙️ Download STEP (.STEP)
+                </a>
+                ` : ''}
+                <button id="download-json-btn" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px;">
+                    📄 Download Spec (.JSON)
+                </button>
+            </div>
+        </div>
+
         <div class="json-viewer">${formatJSON(specJson)}</div>
     `;
+
+    // Attach JSON download handler
+    const jsonBtn = document.getElementById('download-json-btn');
+    if (jsonBtn) {
+        jsonBtn.addEventListener('click', () => {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(specJson, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `${specId}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        });
+    }
+
 
     // Attach TTS handler
     const ttsBtn = document.getElementById('tts-report-btn');
@@ -576,7 +643,8 @@ async function handleQuickGenerate() {
             payload.context.budget = budget;
         }
 
-        const response = await apiPost('/api/v1/generate', payload);
+        const response = await apiPost('/api/v1/core/generate', payload);
+
         const data = await response.json();
 
         if (response.ok) {
@@ -640,8 +708,10 @@ function displayGeometryPreview(glbUrl, title = '3D Model', isFile = false) {
     if (clearBtn) clearBtn.style.display = 'inline-block';
 
     // Load GLB file (works with both URLs and object URLs)
-    viewer.src = glbUrl;
+    const resolvedGlbUrl = isFile ? glbUrl : resolveBinaryFileDownloadUrl(glbUrl, 'geometry');
+    viewer.src = resolvedGlbUrl || glbUrl;
     viewer.alt = title;
+
 
     // Update info
     if (previewInfo) {

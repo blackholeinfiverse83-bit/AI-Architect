@@ -41,7 +41,7 @@ services:
       - key: HUGGINGFACE_API_KEY
         sync: false
       - key: CORS_ORIGINS
-        value: '["*"]'
+        value: '["https://ai-architect-gray.vercel.app", "*"]'
       - key: CORS_CREDENTIALS
         value: "false"
       - key: USE_AI_MODEL

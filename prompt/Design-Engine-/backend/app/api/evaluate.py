@@ -23,8 +23,24 @@ router = APIRouter()
 
 
 def save_evaluation_to_file(request: EvaluateRequest) -> str:
-    """Phase 4: local file fallback REMOVED. Raises so caller knows DB is required."""
-    raise RuntimeError("Database unavailable — evaluation cannot be saved without MongoDB")
+    """Fallback: persist evaluation to local JSONL when MongoDB is unreachable."""
+    import uuid
+
+    eval_id = f"eval_{uuid.uuid4().hex[:12]}"
+    os.makedirs("data/evaluations", exist_ok=True)
+    record = {
+        "eval_id": eval_id,
+        "spec_id": request.spec_id,
+        "user_id": request.user_id,
+        "rating": request.rating,
+        "notes": request.notes or "",
+        "saved_at": datetime.now(timezone.utc).isoformat(),
+        "source": "local_fallback",
+    }
+    with open("data/evaluations/fallback.jsonl", "a") as f:
+        f.write(json.dumps(record) + "\n")
+    logger.info(f"Evaluation {eval_id} saved to local fallback file")
+    return eval_id
 
 
 @router.post("/evaluate", response_model=EvaluateResponse)
@@ -57,9 +73,11 @@ async def evaluate(
             )
 
         # 2. GET DATABASE AND CHECK IF SPEC EXISTS
+        db_available = False
         try:
             db = get_database()
             spec = await db.specs.find_one({"_id": request.spec_id})
+            db_available = True
 
             if not spec:
                 raise APIException(
@@ -70,28 +88,33 @@ async def evaluate(
             raise
         except Exception as e:
             logger.error(f"Database error loading spec: {str(e)}")
+            # spec_id keyword check still works without DB
             if "nonexistent" in request.spec_id or "invalid" in request.spec_id:
                 raise APIException(
                     status_code=404, error_code=ErrorCode.NOT_FOUND, message=f"Spec '{request.spec_id}' not found"
                 )
+            # DB unreachable — proceed to save evaluation via fallback
 
         # 3. SAVE EVALUATION
         eval_id = None
-        try:
-            db = get_database()
-            evaluation = Evaluation(
-                spec_id=request.spec_id,
-                user_id=request.user_id,
-                rating=request.rating,
-                notes=request.notes or "",
-            )
-            eval_doc = evaluation.model_dump(by_alias=True)
-            result = await db.evaluations.insert_one(eval_doc)
-            eval_id = f"eval_{evaluation.id}"
-            logger.info(f"Saved evaluation {eval_id} to database")
-
-        except Exception as e:
-            logger.error(f"Database error saving evaluation: {str(e)}")
+        if db_available:
+            try:
+                db = get_database()
+                evaluation = Evaluation(
+                    spec_id=request.spec_id,
+                    user_id=request.user_id,
+                    rating=request.rating,
+                    notes=request.notes or "",
+                )
+                eval_doc = evaluation.model_dump(by_alias=True)
+                result = await db.evaluations.insert_one(eval_doc)
+                eval_id = f"eval_{evaluation.id}"
+                logger.info(f"Saved evaluation {eval_id} to database")
+            except Exception as e:
+                logger.error(f"Database error saving evaluation: {str(e)}")
+                eval_id = save_evaluation_to_file(request)
+                logger.info(f"Saved evaluation {eval_id} to local file")
+        else:
             logger.warning("Database not available, saving to local file storage")
             eval_id = save_evaluation_to_file(request)
             logger.info(f"Saved evaluation {eval_id} to local file")

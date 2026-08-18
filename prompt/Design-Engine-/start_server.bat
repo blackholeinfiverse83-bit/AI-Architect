@@ -1,6 +1,9 @@
 @echo off
-cd /d "%~dp0"
-echo Starting Design Engine Backend Server...
-set PYTHONPATH=%~dp0backend;%~dp0
-cd /d "%~dp0backend"
-".venv\Scripts\python.exe" -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+REM Run from: C:\Users\Anmol\Desktop\Backend\
+REM Sets PYTHONPATH so both 'app' and 'platform_adapter' are importable
+
+set PYTHONPATH=C:\Users\Anmol\Desktop\Backend\backend;C:\Users\Anmol\Desktop\Backend
+
+cd /d C:\Users\Anmol\Desktop\Backend\backend
+
+C:\Users\Anmol\Desktop\Backend\.venv\Scripts\uvicorn.exe app.main:app --reload --host 0.0.0.0 --port 8000

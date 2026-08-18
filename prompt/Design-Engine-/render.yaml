@@ -45,7 +45,7 @@ services:
 
       # ── CORS ──────────────────────────────────────────────────────────────
       - key: CORS_ORIGINS
-        value: "*"           # tighten to your frontend URL in production
+        value: "https://ai-architect-gray.vercel.app,*"
 
       # ── External Services ─────────────────────────────────────────────────
       - key: SOHAM_URL

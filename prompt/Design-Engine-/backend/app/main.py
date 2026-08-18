@@ -33,17 +33,19 @@ from app.api import (
     iterate,
     mcp_integration,
     mobile,
+    monitoring,
     monitoring_system,
     multi_city_testing,
+    replay,
     reports,
     rl,
     switch,
-    tts,
     vr,
     workflow_consolidation,
 )
 from app.config import settings
 from app.database_mongodb import close_mongo_connection, connect_to_mongo
+from app.middleware.trace_context import TraceContextMiddleware
 from app.multi_city.city_data_loader import city_router
 from app.utils import setup_logging
 from fastapi import FastAPI, HTTPException, Request
@@ -163,18 +165,12 @@ else:
 
 cors_origins = list(settings.CORS_ORIGINS or [])
 if not cors_origins:
-    cors_origins = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-        "https://ai-architect-gray.vercel.app"
-    ]
+    cors_origins = ["http://localhost:3000", "http://localhost:3001"]
 if "*" in cors_origins and settings.CORS_CREDENTIALS:
     logger.warning("CORS wildcard '*' removed because credentials are enabled")
     cors_origins = [origin for origin in cors_origins if origin != "*"]
     if not cors_origins:
-        cors_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+        cors_origins = ["http://localhost:3000"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -183,6 +179,7 @@ app.add_middleware(
     allow_methods=settings.CORS_METHODS,
     allow_headers=settings.CORS_HEADERS,
 )
+app.add_middleware(TraceContextMiddleware)
 
 
 # Phase 3: /api/v1/generate is a hard-blocked route (always 403).
@@ -226,11 +223,11 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(files.router, prefix="/api/v1", tags=["File Download"])
 app.include_router(downloads.router, tags=["File Downloads"])
 app.include_router(health.router, prefix="/api/v1", tags=["System Health"], include_in_schema=False)
+app.include_router(monitoring.router, prefix="/api/v1", tags=["Monitoring"], include_in_schema=False)
 app.include_router(monitoring_system.router, include_in_schema=False)
 app.include_router(data_privacy.router, prefix="/api/v1", tags=["Data Privacy"], include_in_schema=False)
 app.include_router(data_audit.router, tags=["Data Audit"], include_in_schema=False)
 app.include_router(generate.router, prefix="/api/v1", tags=["Design Generation"])
-app.include_router(tts.router, prefix="/api/v1", tags=["Text-To-Speech"])
 app.include_router(core_entry.router, prefix="/api/v1", tags=["Core Entry"])
 app.include_router(evaluate.router, prefix="/api/v1", tags=["Design Evaluation"], include_in_schema=False)
 app.include_router(iterate.router, prefix="/api/v1", tags=["Design Iteration"], include_in_schema=False)
@@ -249,6 +246,7 @@ app.include_router(integration_layer.router, include_in_schema=False)
 app.include_router(workflow_consolidation.router, include_in_schema=False)
 app.include_router(multi_city_testing.router, include_in_schema=False)
 app.include_router(geometry_generator.router)
+app.include_router(replay.router, prefix="/api/v1", tags=["Replay"])
 
 
 if __name__ == "__main__":

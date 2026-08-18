@@ -1,8 +1,14 @@
 import hashlib
 import json
 
-import torch
-import torch.nn as nn
+try:
+    import torch
+    import torch.nn as nn
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+    torch = None
+    nn = object  # dummy class for inheritance safety if needed
 
 
 def flatten_spec(spec_json: dict) -> str:
@@ -10,6 +16,8 @@ def flatten_spec(spec_json: dict) -> str:
 
 
 def hash_tokenize(text: str, vocab: int = 50000, max_len: int = 512):
+    if not HAS_TORCH:
+        return [0]
     toks = text.split()
     ids = []
     for t in toks[:max_len]:
@@ -20,20 +28,26 @@ def hash_tokenize(text: str, vocab: int = 50000, max_len: int = 512):
     return torch.tensor(ids, dtype=torch.long)
 
 
-class SimpleRewardModel(nn.Module):
+class SimpleRewardModel(nn.Module if HAS_TORCH else object):
     def __init__(self, vocab=50000, hidden=768):
-        super().__init__()
-        self.emb = nn.Embedding(vocab, 64)
-        self.head = nn.Sequential(nn.Linear(64, hidden), nn.ReLU(), nn.Linear(hidden, 1))
+        if HAS_TORCH:
+            super().__init__()
+            self.emb = nn.Embedding(vocab, 64)
+            self.head = nn.Sequential(nn.Linear(64, hidden), nn.ReLU(), nn.Linear(hidden, 1))
 
     def forward(self, ids):
+        if not HAS_TORCH:
+            return 0.0
         x = self.emb(ids).mean(dim=1)
         return self.head(x).squeeze(-1)
 
 
-@torch.no_grad()
-def score_spec(model: nn.Module, prompt: str, spec_json: dict, device="cpu") -> float:
-    txt = prompt + " " + flatten_spec(spec_json)
-    ids = hash_tokenize(txt).to(device).unsqueeze(0)
-    model.eval()
-    return float(model(ids).item())
+def score_spec(model, prompt: str, spec_json: dict, device="cpu") -> float:
+    if not HAS_TORCH or model is None:
+        return 0.5
+    with torch.no_grad():
+        txt = prompt + " " + flatten_spec(spec_json)
+        ids = hash_tokenize(txt).to(device).unsqueeze(0)
+        model.eval()
+        return float(model(ids).item())
+

@@ -74,6 +74,57 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     return {"access_token": _issue_access_token(subject), "token_type": "bearer"}
 
 
+from pydantic import BaseModel
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str | None = None
+    name: str | None = None
+
+
+@router.post("/register")
+@router.post("/signup")
+async def register(req: RegisterRequest):
+    email = req.email.strip().lower()
+    if not email or not req.password:
+        raise HTTPException(status_code=400, detail="Email and password are required")
+
+    try:
+        db = get_database()
+    except Exception as e:
+        logger.error(f"[AUTH] Database connection error: {e}")
+        raise HTTPException(status_code=503, detail="Authentication service unavailable")
+
+    existing = await db.users.find_one({"$or": [{"email": email}, {"username": email}]})
+    if existing:
+        raise HTTPException(status_code=409, detail="User with this email already exists")
+
+    from app.utils import hash_password
+
+    user_id = f"user_{email.split('@')[0]}"
+    hashed_pwd = hash_password(req.password)
+    user_doc = {
+        "_id": user_id,
+        "username": email,
+        "email": email,
+        "password_hash": hashed_pwd,
+        "hashed_password": hashed_pwd,
+        "full_name": req.full_name or req.name or email.split("@")[0],
+        "is_active": True,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    await db.users.insert_one(user_doc)
+    token = _issue_access_token(user_id)
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {"id": user_id, "email": email, "name": user_doc["full_name"]},
+    }
+
+
 @router.post("/refresh", include_in_schema=False)
 async def refresh_token(token: HTTPAuthorizationCredentials = Depends(security)):
     """Refresh JWT token - requires valid existing token."""
@@ -88,3 +139,4 @@ async def refresh_token(token: HTTPAuthorizationCredentials = Depends(security))
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+

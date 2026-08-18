@@ -25,8 +25,3 @@ stable-baselines3>=2.0.0
 torch>=2.0.0
 transformers>=4.30.0
 trl>=0.7.0
-
-# Text-To-Speech (TTS)
-# TTS>=0.22.0 (Note: Not compatible with Python 3.12 yet, using gTTS/pyttsx3 fallback)
-gTTS>=2.4.0
-pyttsx3>=2.90
